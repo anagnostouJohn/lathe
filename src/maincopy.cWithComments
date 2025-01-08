@@ -35,7 +35,44 @@ int direction = 0;
 int PrevValue = 0;
 int current_value;
 SemaphoreHandle_t xBinarySemaphoreClock;
- 
+
+
+
+// Function to print APB Clock frequency
+
+
+// SemaphoreHandle_t xBinarySemaphoreCounterClock;
+
+// static bool example_pcnt_on_reach(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx)
+// {
+//     BaseType_t high_task_wakeup;
+//     QueueHandle_t queue = (QueueHandle_t)user_ctx;
+
+//     // send event data to queue, from this interrupt callback
+//     xQueueSendFromISR(queue, &(edata->watch_point_value), &high_task_wakeup);
+//     if (edata->watch_point_value==0){
+//         PrevValue=0;
+//     }
+//       if (edata->watch_point_value < PrevValue) {
+//         direction = 0;
+//       } else if (edata->watch_point_value > PrevValue){
+//         direction =1;
+//       } else if (edata->watch_point_value == PrevValue){
+//         ;;
+//       }
+     
+//     xSemaphoreGiveFromISR(xBinarySemaphoreClock, &high_task_wakeup);
+//          PrevValue = edata->watch_point_value;
+//     // } else if (edata->watch_point_value == -1200) {
+//     //     xSemaphoreGiveFromISR(xBinarySemaphoreCounterClock, &high_task_wakeup);
+
+//     // }
+
+    
+//     portYIELD_FROM_ISR(high_task_wakeup);
+//     return (high_task_wakeup == pdTRUE);
+// }
+
 void Task1(void *pvParameters) {
   
     esp_rom_gpio_pad_select_gpio(DirPin);
@@ -43,12 +80,17 @@ void Task1(void *pvParameters) {
 
     esp_rom_gpio_pad_select_gpio(PulcePin);
     gpio_set_direction(PulcePin, GPIO_MODE_OUTPUT);
-    gpio_set_level(DirPin,direction);
+     gpio_set_level(DirPin,direction);
     while (1) {
-        if(xSemaphoreTake(xBinarySemaphoreClock, portMAX_DELAY)==pdTRUE){           
+        if(xSemaphoreTake(xBinarySemaphoreClock, portMAX_DELAY)==pdTRUE){
+            
+            // ESP_LOGI("SEM TAKEN", "AAAAAAAAAAAAAAAA >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> %d", direction);
+           
             gpio_set_level(PulcePin, 1);
             vTaskDelay(pdMS_TO_TICKS(1));
             gpio_set_level(PulcePin, 0);
+            // esp_rom_delay_us(1000);
+            // vTaskDelay(15 / portTICK_PERIOD_MS);  // Delay 500 ms
         }
     }
    
@@ -65,6 +107,12 @@ void TaskRottary(void *pvParameters)
     };
    
     ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &pcnt_unit));
+
+    // ESP_LOGI(TAG, "set glitch filter");
+    // pcnt_glitch_filter_config_t filter_config = {
+    //     .max_glitch_ns = 50,
+    // };
+    // ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(pcnt_unit, &filter_config));
 
     ESP_LOGI(TAG, "install pcnt channels");
     pcnt_chan_config_t chan_a_config = {
@@ -86,6 +134,17 @@ void TaskRottary(void *pvParameters)
     ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_b, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_DECREASE));
     ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_b, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
 
+    // ESP_LOGI(TAG, "add watch points and register callbacks");
+    // int watch_points[] = {-2400, -2388, -2376, 0, 2400};
+    // // int watch_points[] = {12, 24,  48, 60};
+    // for (size_t i = 0; i < sizeof(watch_points) / sizeof(watch_points[0]); i++) {
+    //     ESP_ERROR_CHECK(pcnt_unit_add_watch_point(pcnt_unit, watch_points[i]));
+    // }
+    // pcnt_event_callbacks_t cbs = {
+    //     .on_reach = example_pcnt_on_reach,
+    // };
+    // QueueHandle_t queue = xQueueCreate(20, sizeof(int));
+    // ESP_ERROR_CHECK(pcnt_unit_register_event_callbacks(pcnt_unit, &cbs, queue));
 
     ESP_LOGI(TAG, "enable pcnt unit");
     ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
@@ -100,16 +159,41 @@ void TaskRottary(void *pvParameters)
     ESP_ERROR_CHECK(esp_sleep_enable_gpio_wakeup());
     ESP_ERROR_CHECK(esp_light_sleep_start());
 #endif
+
+    // Report counter value
     int pulse_count = 0;
     int prev = 0;
+    // int event_count = 0;
     for (;;) {
+        // ESP_LOGI(TAG, "Watch point event, count: %d", event_count);
+        // if (xQueueReceive(queue, &event_count, pdMS_TO_TICKS(1000))) { //TODO possible BUG
+        //     ESP_LOGI(TAG, "Watch point event, count: %d", event_count);
+        // } else {
+
             ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
             if ((pulse_count % 12==0) && (prev != pulse_count)){
                 xSemaphoreGive(xBinarySemaphoreClock);
                 prev = pulse_count;
+            //    ESP_LOGI(TAG, "Pulse count: %d", pulse_count); 
             }
+            // ESP_LOGI(TAG, "Pulse count: %d", pulse_count);
+            // if (PrevValue != pulse_count ) {
+                // if (pulse_count % 12==0){
+                    // printf("%d\n",pulse_count);
+                    // ESP_LOGI(TAG, "Pulse count: %d", pulse_count);
+                    // xSemaphoreGive(xBinarySemaphoreClock);
+                    // PrevValue=pulse_count;
+                    // ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
+                // }
+                // vTaskDelay(15 / portTICK_PERIOD_MS);
                 esp_task_wdt_reset();
             }
+           
+            
+
+            // taskYIELD();
+        // }
+    // }
 }
 
 
@@ -132,6 +216,7 @@ void app_main() {
 
     // Check and print the APB clock frequency
     xBinarySemaphoreClock = xSemaphoreCreateBinary();
+    // xBinarySemaphoreCounterClock = xSemaphoreCreateBinary();
     if (xBinarySemaphoreClock == NULL) {
         ESP_LOGE("app_main", "Failed to create semaphore");
         return; // Abort if semaphore creation fails

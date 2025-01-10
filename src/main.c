@@ -31,27 +31,44 @@ static const char *TAG = "example";
 #define PulcePin GPIO_NUM_5
 
 
-int direction = 0;
+// int direction = 0;
 int PrevValue = 0;
 int current_value;
 SemaphoreHandle_t xBinarySemaphoreClock;
- 
-void Task1(void *pvParameters) {
-  
+SemaphoreHandle_t xBinarySemaphoreCounterClock;
+
+
+
+void TaskStepperClock(void *pvParameters) {
     esp_rom_gpio_pad_select_gpio(DirPin);
     gpio_set_direction(DirPin, GPIO_MODE_OUTPUT);
 
     esp_rom_gpio_pad_select_gpio(PulcePin);
     gpio_set_direction(PulcePin, GPIO_MODE_OUTPUT);
-    gpio_set_level(DirPin,direction);
     while (1) {
-        if(xSemaphoreTake(xBinarySemaphoreClock, portMAX_DELAY)==pdTRUE){           
+        if(xSemaphoreTake(xBinarySemaphoreClock, portMAX_DELAY)==pdTRUE){     
+            gpio_set_level(DirPin,1);      
             gpio_set_level(PulcePin, 1);
             vTaskDelay(pdMS_TO_TICKS(1));
             gpio_set_level(PulcePin, 0);
         }
     }
-   
+}
+
+void TaskStepperCounterClock(void *pvParameters) {
+    esp_rom_gpio_pad_select_gpio(DirPin);
+    gpio_set_direction(DirPin, GPIO_MODE_OUTPUT);
+
+    esp_rom_gpio_pad_select_gpio(PulcePin);
+    gpio_set_direction(PulcePin, GPIO_MODE_OUTPUT);
+    while (1) {
+        if(xSemaphoreTake(xBinarySemaphoreCounterClock, portMAX_DELAY)==pdTRUE){     
+            gpio_set_level(DirPin,0);      
+            gpio_set_level(PulcePin, 1);
+            vTaskDelay(pdMS_TO_TICKS(1));
+            gpio_set_level(PulcePin, 0);
+        }
+    }
 }
 
 void TaskRottary(void *pvParameters)
@@ -104,10 +121,16 @@ void TaskRottary(void *pvParameters)
     int prev = 0;
     for (;;) {
             ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
-            if ((pulse_count % 12==0) && (prev != pulse_count)){
-                xSemaphoreGive(xBinarySemaphoreClock);
-                prev = pulse_count;
-            }
+            // if (prev != pulse_count) {
+                if (pulse_count % 12==0 && pulse_count > prev){
+                    xSemaphoreGive(xBinarySemaphoreClock);
+                    prev = pulse_count;
+                } else if (pulse_count % 12==0 && pulse_count < prev) {
+                    xSemaphoreGive(xBinarySemaphoreCounterClock);
+                    prev = pulse_count;
+                }
+                
+            // }
                 esp_task_wdt_reset();
             }
 }
@@ -136,12 +159,16 @@ void app_main() {
         ESP_LOGE("app_main", "Failed to create semaphore");
         return; // Abort if semaphore creation fails
     }
-    
+        xBinarySemaphoreCounterClock = xSemaphoreCreateBinary();
+    if (xBinarySemaphoreCounterClock == NULL) {
+        ESP_LOGE("app_main", "Failed to create semaphore");
+        return; // Abort if semaphore creation fails
+    }
 
     // Create the task and pin it to core 1
     xTaskCreatePinnedToCore(
-        Task1,            // Function that implements the task
-        "BlinkTask",      // Name of the task
+        TaskStepperClock,            // Function that implements the task
+        "TaskStepperClock",      // Name of the task
         4096,             // Stack size
         NULL,             // Task input parameter
         1,                // Priority of the task
@@ -152,7 +179,17 @@ void app_main() {
     );
 
 
+    xTaskCreatePinnedToCore(
+        TaskStepperCounterClock,            // Function that implements the task
+        "TaskStepperCounterClock",      // Name of the task
+        4096,             // Stack size
+        NULL,             // Task input parameter
+        1,                // Priority of the task
+        NULL,             // Task handle
+        tskNO_AFFINITY
+        // 1                 // Core where the task should run (1 for core 1, 0 for core 0)
 
+    );
 
 
     xTaskCreatePinnedToCore(  
@@ -165,6 +202,17 @@ void app_main() {
         tskNO_AFFINITY
         // 0
     );
+
+    //     xTaskCreatePinnedToCore(  
+    //     TaskRottaryCounterClock,
+    //     "RotaryEncoderCounterClock",
+    //     4096,
+    //     NULL,
+    //     1,
+    //     NULL,
+    //     tskNO_AFFINITY
+    //     // 0
+    // );
 }
 
 

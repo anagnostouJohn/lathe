@@ -122,10 +122,10 @@ void TaskRottary(void *pvParameters)
     for (;;) {
             ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
             // if (prev != pulse_count) {
-                if (pulse_count % 12==0 && pulse_count > prev){
+                if (pulse_count % 12==0 && (pulse_count > prev || (pulse_count ==0 && prev==EXAMPLE_PCNT_HIGH_LIMIT))){
                     xSemaphoreGive(xBinarySemaphoreClock);
                     prev = pulse_count;
-                } else if (pulse_count % 12==0 && pulse_count < prev) {
+                } else if (pulse_count % 12==0 && (pulse_count < prev || (pulse_count==0 && prev==EXAMPLE_PCNT_LOW_LIMIT))) {
                     xSemaphoreGive(xBinarySemaphoreCounterClock);
                     prev = pulse_count;
                 }

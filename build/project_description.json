@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "lathe",
-    "project_version":    "1fa337b-dirty",
+    "project_version":    "1bba1b0-dirty",
     "project_path":       "C:/Users/anagn/Documents/PlatformIO/Projects/lathe",
     "idf_path":           "C:/Users/anagn/esp/v5.3.1/esp-idf",
     "build_dir":          "C:/Users/anagn/Documents/PlatformIO/Projects/lathe/build",

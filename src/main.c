@@ -118,37 +118,59 @@ void TaskRottary(void *pvParameters)
     ESP_ERROR_CHECK(esp_light_sleep_start());
 #endif
     int pulse_count = 0;
-    int prev = 0;
+    int numbers[] = {26, 27, 27};
+    
     for (;;) {
 
             ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
-            if (pulse_count != prev) {
-                    
-                    if (pulse_count == 0) {
-                        // At zero, which direction did we come from?
-                        if (prev > 0) {
+                    if (pulse_count % numbers[0] == 0 && pulse_count>0) {
                             xSemaphoreGive(xBinarySemaphoreClock);
-                        } else if (prev < 0) {
+                            pcnt_unit_clear_count(pcnt_unit);
+                            int x = numbers[0];
+                            numbers[0] =numbers[1];
+                            numbers[1] = numbers[2];
+                            numbers[2] = x;
+                        } else if (pulse_count % numbers[0] == 0 && pulse_count < 0){
                             xSemaphoreGive(xBinarySemaphoreCounterClock);
-                        }
+                            pcnt_unit_clear_count(pcnt_unit);
+                            int x = numbers[0];
+                            numbers[0] =numbers[1];
+                            numbers[1] = numbers[2];
+                            numbers[2] = x;
+                        } else{;;}
+                         esp_task_wdt_reset();
                     }
-                    else if (pulse_count % 12 == 0) {
-                        // At a multiple of 12, decide direction
-                        if (pulse_count > prev) {
-                            xSemaphoreGive(xBinarySemaphoreClock);
-                        } else {
-                            xSemaphoreGive(xBinarySemaphoreCounterClock);
-                        }
-                    }
-
-                    prev = pulse_count;  // Update the "previous" counter
-                }
-               
-            // }
-                esp_task_wdt_reset();
-            }
 }
 
+
+    // for (;;) {
+
+    //         ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
+    //         if (pulse_count != prev) {
+                    
+    //                 if (pulse_count == 0) {
+    //                     // At zero, which direction did we come from?
+    //                     if (prev > 0) {
+    //                         xSemaphoreGive(xBinarySemaphoreClock);
+    //                     } else if (prev < 0) {
+    //                         xSemaphoreGive(xBinarySemaphoreCounterClock);
+    //                     }
+    //                 }
+    //                 else if (pulse_count % 12 == 0) {
+    //                     // At a multiple of 12, decide direction
+    //                     if (pulse_count > prev) {
+    //                         xSemaphoreGive(xBinarySemaphoreClock);
+    //                     } else {
+    //                         xSemaphoreGive(xBinarySemaphoreCounterClock);
+    //                     }
+    //                 }
+
+    //                 prev = pulse_count;  // Update the "previous" counter
+    //             }
+               
+    //         // }
+    //             esp_task_wdt_reset();
+    //         }
 
 
 

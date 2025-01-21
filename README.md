@@ -11,7 +11,6 @@ Rlead Screw = 175 Steps (per one revolution of Tsoc)
 
 Rottary Encoder Steps = 4000/175 = 22.857
 
-Start divide 175 until you found the 22.857
 
 0.875 from 22.857 is 6/7
 (22*6)/7 = 160/7

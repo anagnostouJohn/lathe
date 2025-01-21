@@ -3,6 +3,7 @@ Lead Screw = 2mm
 Desired Screw Pitch = 1.75
 
 Stepper Motor Steps/Revolution = 200
+
 Rottary Encoder Pulses/Revolution = 4000
 
 

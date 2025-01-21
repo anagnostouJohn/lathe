@@ -1,12 +1,17 @@
 Lead Screw = 2mm
-Desire Screw = 1.75
-Speed Motor Pulses = 200
-Rottary Encoder Steps = 4000
+
+Desired Screw Pitch = 1.75
+
+Stepper Motor Steps/Revolution = 200
+Rottary Encoder Pulses/Revolution = 4000
 
 
-Rlead Screw = RSplindle * (Desire Pich/Lead Screw Pitch)
+Rlead Screw = RSplindle * (Desire Pitch/Lead Screw Pitch)
+
 Rlead Screw = Rspindle * (1.75/2)
+
 Rlead Screw = 200 * 0.875
+
 Rlead Screw = 175 Steps (per one revolution of Tsoc)
 
 Rottary Encoder Steps = 4000/175 = 22.857

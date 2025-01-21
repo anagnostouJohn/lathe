@@ -118,8 +118,12 @@ void TaskRottary(void *pvParameters)
     ESP_ERROR_CHECK(esp_light_sleep_start());
 #endif
     int pulse_count = 0;
-    int numbers[] = {26, 27, 27};
+    int numbers15[] = {27, 26, 27};
+    int numbers175[] = {22,23,23,24,23,23,22};
+   
     
+    int numbers[] = numbers15;
+    int sizeOfList = sizeof(numbers) / sizeof(numbers[0]);
     for (;;) {
 
             ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
@@ -127,21 +131,104 @@ void TaskRottary(void *pvParameters)
                             xSemaphoreGive(xBinarySemaphoreClock);
                             pcnt_unit_clear_count(pcnt_unit);
                             int x = numbers[0];
-                            numbers[0] =numbers[1];
-                            numbers[1] = numbers[2];
-                            numbers[2] = x;
+                            for(int i=0; i<sizeOfList - 1; i++){
+                                numbers[i]=numbers[i+1];
+                            }
+                            numbers[sizeOfList-1] = x;
+
                         } else if (pulse_count % numbers[0] == 0 && pulse_count < 0){
                             xSemaphoreGive(xBinarySemaphoreCounterClock);
                             pcnt_unit_clear_count(pcnt_unit);
                             int x = numbers[0];
-                            numbers[0] =numbers[1];
-                            numbers[1] = numbers[2];
-                            numbers[2] = x;
+                            for(int i=0; i<sizeOfList - 1; i++){
+                                numbers[i]=numbers[i+1];
+                            }
+                            numbers[sizeOfList-1] = x;
                         } else{;;}
                          esp_task_wdt_reset();
                     }
 }
 
+
+
+/////////////////////////////////////////////////////////
+
+// #include <stdio.h>
+// #include <math.h>
+// #include <stdbool.h>
+// #include <stdlib.h>
+
+// #define DESIRE 22.85  // Target average
+// #define MIN_VALUE 20  // Minimum value in the list
+// #define MAX_VALUE 30  // Maximum value in the list
+
+// // Function prototypes
+// void incrementList(int **list, int *size, int minValue, int maxValue);
+// bool calculatePattern(int *list, int size);
+
+// void app_main() {
+//     // Initialize the list with one element set to MIN_VALUE
+//     int *list = malloc(sizeof(int));  // Dynamically allocate memory for the list
+//     int size = 1;  // Current size of the list
+//     list[0] = MIN_VALUE;
+
+//     while (true) {
+//         // Increment the list
+//         incrementList(&list, &size, MIN_VALUE, MAX_VALUE);
+
+//         // Check if the desired average is achieved
+//         if (calculatePattern(list, size)) {
+//             printf("Final list: ");
+//             for (int i = 0; i < size; i++) {
+//                 printf("%d ", list[i]);
+//             }
+//             printf("\n");
+//             break;
+//         }
+//     }
+
+//     // Free the dynamically allocated memory
+//     free(list);
+// }
+
+// // Function to increment the list
+// void incrementList(int **list, int *size, int minValue, int maxValue) {
+//     for (int i = 0; i < *size; i++) {
+//         (*list)[i]++;
+
+//         if ((*list)[i] > maxValue) {  // If the value exceeds maxValue
+//             (*list)[i] = minValue;   // Reset to minValue
+
+//             if (i == *size - 1) {  // If it's the last element, add a new element
+//                 *size += 1;
+//                 *list = realloc(*list, *size * sizeof(int));
+//                 (*list)[*size - 1] = minValue;
+//             }
+//         } else {
+//             return;  // Stop after incrementing the first incomplete element
+//         }
+//     }
+// }
+
+// // Function to calculate the average and compare it with the desired value
+// bool calculatePattern(int *list, int size) {
+//     int sum = 0;
+//     for (int i = 0; i < size; i++) {
+//         sum += list[i];
+//     }
+
+//     double average = (double)sum / size;            // Calculate the average
+//     double truncatedAverage = trunc(average * 100) / 100;  // Truncate to two decimals
+
+//     printf("Average: %.2f, Desired: %.2f, Size: %d\n", truncatedAverage, DESIRE, size);
+
+//     return truncatedAverage == DESIRE;
+// }
+
+
+
+
+///////////////////////////////////////
 
     // for (;;) {
 

@@ -15,7 +15,7 @@
 #include "freertos/queue.h"
 #include "esp_sleep.h"
 #include "esp_task_wdt.h"
-
+#include <stdio.h>
 #include "esp_pm.h"
 
 
@@ -118,11 +118,11 @@ void TaskRottary(void *pvParameters)
     ESP_ERROR_CHECK(esp_light_sleep_start());
 #endif
     int pulse_count = 0;
-    int numbers15[] = {27, 26, 27};
-    int numbers175[] = {22,23,23,24,23,23,22};
+    int numbers[] = {27, 26, 27};
+    // int numbers175[] = {22,23,23,24,23,23,22};
    
     
-    int numbers[] = numbers15;
+    // int numbers[] = numbers15;
     int sizeOfList = sizeof(numbers) / sizeof(numbers[0]);
     for (;;) {
 
@@ -148,6 +148,141 @@ void TaskRottary(void *pvParameters)
                          esp_task_wdt_reset();
                     }
 }
+
+
+
+
+static int gcd(int a, int b)
+{
+    if (b == 0) return a;
+    return gcd(b, a % b);
+}
+
+
+
+
+void app_main() {
+
+   // Wait for system to stabilize
+   esp_task_wdt_config_t wd_config = {
+    .timeout_ms =5000,
+    .idle_core_mask=0,
+    .trigger_panic=true,
+   };
+     esp_err_t ret = esp_task_wdt_reconfigure(&wd_config); // Apply configuration
+    if (ret != ESP_OK) {
+        printf("Task Watchdog Timer reconfiguration failed: %d\n", ret);
+    }
+
+    // Check and print the APB clock frequency
+    xBinarySemaphoreClock = xSemaphoreCreateBinary();
+    if (xBinarySemaphoreClock == NULL) {
+        ESP_LOGE("app_main", "Failed to create semaphore");
+        return; // Abort if semaphore creation fails
+    }
+        xBinarySemaphoreCounterClock = xSemaphoreCreateBinary();
+    if (xBinarySemaphoreCounterClock == NULL) {
+        ESP_LOGE("app_main", "Failed to create semaphore");
+        return; // Abort if semaphore creation fails
+    }
+
+
+    int pulses = 2400;
+    int steps  = 150;
+
+    // We want to express ratio = pulses / steps in simplest form.
+    // ratio = 4000 / 175
+
+    // 1) Compute GCD
+    int divisor = gcd(pulses, steps);
+
+    // 2) Divide both by GCD to get reduced fraction
+    int numerator   = pulses / divisor;  // e.g. 4000 / 25 = 160
+    int denominator = steps  / divisor;  // e.g. 175 / 25  = 7
+
+    // 3) Print results
+    printf("Ratio (pulses/steps) = %d/%d Divisor = %d\n", numerator, denominator, divisor);
+
+    // The fraction is 160/7, meaning:
+    // - For every 7 'step blocks', we have 160 'pulse blocks'.
+    // - Repeated enough times => 175 steps, 4000 pulses.
+
+    int blockSteps  = denominator; // 7
+    int blockPulses = numerator;   // 160
+
+    printf("Block size (steps) = %d, Pulses in that block = %d\n",
+           blockSteps, blockPulses);
+
+    // Keep this task alive
+
+    vTaskDelay(1000000);
+
+
+    // Create the task and pin it to core 1
+    xTaskCreatePinnedToCore(
+        TaskStepperClock,            // Function that implements the task
+        "TaskStepperClock",      // Name of the task
+        4096,             // Stack size
+        NULL,             // Task input parameter
+        1,                // Priority of the task
+        NULL,             // Task handle
+        tskNO_AFFINITY
+        // 1                 // Core where the task should run (1 for core 1, 0 for core 0)
+
+    );
+
+
+    xTaskCreatePinnedToCore(
+        TaskStepperCounterClock,            // Function that implements the task
+        "TaskStepperCounterClock",      // Name of the task
+        4096,             // Stack size
+        NULL,             // Task input parameter
+        1,                // Priority of the task
+        NULL,             // Task handle
+        tskNO_AFFINITY
+        // 1                 // Core where the task should run (1 for core 1, 0 for core 0)
+
+    );
+
+
+    xTaskCreatePinnedToCore(  
+        TaskRottary,
+        "RotaryEncoder",
+        4096,
+        NULL,
+        1,
+        NULL,
+        tskNO_AFFINITY
+        // 0
+    );
+
+    //     xTaskCreatePinnedToCore(  
+    //     TaskRottaryCounterClock,
+    //     "RotaryEncoderCounterClock",
+    //     4096,
+    //     NULL,
+    //     1,
+    //     NULL,
+    //     tskNO_AFFINITY
+    //     // 0
+    // );
+}
+
+
+
+
+// 2. Use a Single Watchpoint + Clear/Reset the Counter
+
+// If you need an event every N pulses (e.g., 12 pulses), you can:
+
+//     Set a single watchpoint at count = N (e.g., 12).
+//     When it triggers, in the ISR:
+//         Notify your main task (via a semaphore or queue).
+//         Call pcnt_unit_clear_count() to reset the count to 0.
+
+// This effectively gives you an “interrupt every 12 pulses,” but it uses only one watchpoint. You don’t need to set 100 watchpoints for 12, 24, 36, etc.
+
+// Drawback: You won’t know the absolute count over time without doing extra tracking. You’re effectively chunking your count in blocks of 12. But if all you need is “do something every 12 pulses,” this approach works well.
 
 
 
@@ -258,98 +393,3 @@ void TaskRottary(void *pvParameters)
     //         // }
     //             esp_task_wdt_reset();
     //         }
-
-
-
-
-
-void app_main() {
-
-   // Wait for system to stabilize
-   esp_task_wdt_config_t wd_config = {
-    .timeout_ms =5000,
-    .idle_core_mask=0,
-    .trigger_panic=true,
-   };
-     esp_err_t ret = esp_task_wdt_reconfigure(&wd_config); // Apply configuration
-    if (ret != ESP_OK) {
-        printf("Task Watchdog Timer reconfiguration failed: %d\n", ret);
-    }
-
-    // Check and print the APB clock frequency
-    xBinarySemaphoreClock = xSemaphoreCreateBinary();
-    if (xBinarySemaphoreClock == NULL) {
-        ESP_LOGE("app_main", "Failed to create semaphore");
-        return; // Abort if semaphore creation fails
-    }
-        xBinarySemaphoreCounterClock = xSemaphoreCreateBinary();
-    if (xBinarySemaphoreCounterClock == NULL) {
-        ESP_LOGE("app_main", "Failed to create semaphore");
-        return; // Abort if semaphore creation fails
-    }
-
-    // Create the task and pin it to core 1
-    xTaskCreatePinnedToCore(
-        TaskStepperClock,            // Function that implements the task
-        "TaskStepperClock",      // Name of the task
-        4096,             // Stack size
-        NULL,             // Task input parameter
-        1,                // Priority of the task
-        NULL,             // Task handle
-        tskNO_AFFINITY
-        // 1                 // Core where the task should run (1 for core 1, 0 for core 0)
-
-    );
-
-
-    xTaskCreatePinnedToCore(
-        TaskStepperCounterClock,            // Function that implements the task
-        "TaskStepperCounterClock",      // Name of the task
-        4096,             // Stack size
-        NULL,             // Task input parameter
-        1,                // Priority of the task
-        NULL,             // Task handle
-        tskNO_AFFINITY
-        // 1                 // Core where the task should run (1 for core 1, 0 for core 0)
-
-    );
-
-
-    xTaskCreatePinnedToCore(  
-        TaskRottary,
-        "RotaryEncoder",
-        4096,
-        NULL,
-        1,
-        NULL,
-        tskNO_AFFINITY
-        // 0
-    );
-
-    //     xTaskCreatePinnedToCore(  
-    //     TaskRottaryCounterClock,
-    //     "RotaryEncoderCounterClock",
-    //     4096,
-    //     NULL,
-    //     1,
-    //     NULL,
-    //     tskNO_AFFINITY
-    //     // 0
-    // );
-}
-
-
-
-
-// 2. Use a Single Watchpoint + Clear/Reset the Counter
-
-// If you need an event every N pulses (e.g., 12 pulses), you can:
-
-//     Set a single watchpoint at count = N (e.g., 12).
-//     When it triggers, in the ISR:
-//         Notify your main task (via a semaphore or queue).
-//         Call pcnt_unit_clear_count() to reset the count to 0.
-
-// This effectively gives you an “interrupt every 12 pulses,” but it uses only one watchpoint. You don’t need to set 100 watchpoints for 12, 24, 36, etc.
-
-// Drawback: You won’t know the absolute count over time without doing extra tracking. You’re effectively chunking your count in blocks of 12. But if all you need is “do something every 12 pulses,” this approach works well.

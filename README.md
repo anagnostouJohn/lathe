@@ -8,7 +8,7 @@ Stepper Motor Steps/Revolution = 200
 
 Rottary Encoder Pulses/Revolution = 4000
 
-*****************************************************************
+***************************************************************** sasasasas
 
 Calculations:
 

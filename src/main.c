@@ -17,6 +17,10 @@
 #include "esp_task_wdt.h"
 #include <stdio.h>
 #include "esp_pm.h"
+#include <stdio.h>
+#include "nvs_flash.h"
+#include "nvs.h"
+
 
 
 static const char *TAG = "Lathe";
@@ -27,6 +31,8 @@ static const char *TAG = "Lathe";
 
 #define DirPin GPIO_NUM_4
 #define PulcePin GPIO_NUM_5
+
+#define STORAGE "Data"
 
 #define EXAMPLE_PCNT_HIGH_LIMIT 2400//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #define EXAMPLE_PCNT_LOW_LIMIT  -2400//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -173,7 +179,86 @@ static int gcd(int a, int b)
 }
 
 
+
+void SetNVS(){
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
+
+
+    nvs_handle_t my_handle;
+    err = nvs_open(STORAGE, NVS_READWRITE, &my_handle);
+    if (err != ESP_OK) {
+        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+    } else {
+        printf("NVS handle opened successfully.\n");
+    }
+
+
+    int32_t counter = 42;
+
+    err = nvs_set_i32(my_handle, "my_counter", counter);// my_counter is the variable counter is the number
+    if (err == ESP_OK) {
+        // Commit written value.
+        err = nvs_commit(my_handle);
+        if (err != ESP_OK) {
+            printf("Error committing to NVS!\n");
+        }
+    } else {
+        printf("Error setting value in NVS!\n");
+    }
+
+}
+
+
+int GetNVS(){
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
+
+
+    nvs_handle_t my_handle;
+    err = nvs_open(STORAGE, NVS_READWRITE, &my_handle);
+    if (err != ESP_OK) {
+        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+    } else {
+        printf("NVS handle opened successfully.\n");
+    }
+
+
+    int32_t stored_value = 0;
+    err = nvs_get_i32(my_handle, "my_counter", &stored_value);
+    switch (err) {
+        case ESP_OK:
+            printf("The stored counter value is: %ld\n", stored_value);
+            break;
+        case ESP_ERR_NVS_NOT_FOUND:
+            printf("The value is not initialized yet!\n");
+            break;
+        default :
+            printf("Error (%s) reading!\n", esp_err_to_name(err));
+    }
+
+    nvs_close(my_handle);
+    return stored_value;
+
+}
+
 void app_main() {
+
+
+    SetNVS();
+    int x = GetNVS();
+    printf(" x : %d!\n",x);
+
+    // vTaskDelay(100000);
+
    // Wait for system to stabilize
    esp_task_wdt_config_t wd_config = {
     .timeout_ms =5000,
@@ -208,8 +293,6 @@ void app_main() {
 
     float fRleadScrew = StepperSteps * ((float)DesirePitch / (float)LeadScrewPitch);
     int RleadScrew = (int)fRleadScrew;
-    ESP_LOGE("app_main", ">>>>>>>>>>>>>>>>>>>>>!!!!!!!!!>>>>>>>>  %d ===,%d,====%d",StepperSteps , DesirePitch,LeadScrewPitch);
-    ESP_LOGE("app_main", ">>>>>>>>>>>>>>>>>>>>>!!!!!!!!!>>>>>>>>  %d",RleadScrew);
    
     int divisor = gcd(SpindlePulses, RleadScrew);
 

@@ -180,76 +180,6 @@
 
 
 
-// void SetNVS(){
-//     esp_err_t err = nvs_flash_init();
-//     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-//         ESP_ERROR_CHECK(nvs_flash_erase());
-//         err = nvs_flash_init();
-//     }
-//     ESP_ERROR_CHECK(err);
-
-
-//     nvs_handle_t my_handle;
-//     err = nvs_open(STORAGE, NVS_READWRITE, &my_handle);
-//     if (err != ESP_OK) {
-//         printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
-//     } else {
-//         printf("NVS handle opened successfully.\n");
-//     }
-
-
-//     int32_t counter = 42;
-
-//     err = nvs_set_i32(my_handle, "my_counter", counter);// my_counter is the variable counter is the number
-//     if (err == ESP_OK) {
-//         // Commit written value.
-//         err = nvs_commit(my_handle);
-//         if (err != ESP_OK) {
-//             printf("Error committing to NVS!\n");
-//         }
-//     } else {
-//         printf("Error setting value in NVS!\n");
-//     }
-
-// }
-
-
-// int GetNVS(){
-//     esp_err_t err = nvs_flash_init();
-//     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-//         ESP_ERROR_CHECK(nvs_flash_erase());
-//         err = nvs_flash_init();
-//     }
-//     ESP_ERROR_CHECK(err);
-
-
-//     nvs_handle_t my_handle;
-//     err = nvs_open(STORAGE, NVS_READWRITE, &my_handle);
-//     if (err != ESP_OK) {
-//         printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
-//     } else {
-//         printf("NVS handle opened successfully.\n");
-//     }
-
-
-//     int32_t stored_value = 0;
-//     err = nvs_get_i32(my_handle, "my_counter", &stored_value);
-//     switch (err) {
-//         case ESP_OK:
-//             printf("The stored counter value is: %ld\n", stored_value);
-//             break;
-//         case ESP_ERR_NVS_NOT_FOUND:
-//             printf("The value is not initialized yet!\n");
-//             break;
-//         default :
-//             printf("Error (%s) reading!\n", esp_err_to_name(err));
-//     }
-
-//     nvs_close(my_handle);
-//     return stored_value;
-
-// }
-
 // void app_main() {
 
 
@@ -411,6 +341,8 @@
 #include "driver/pulse_cnt.h"
 #include "driver/gpio.h"
 #include "esp_sleep.h"
+#include "nvs_flash.h"
+#include "nvs.h"
 
 #define SELECTOR_GPIO_A 36
 #define SELECTOR_GPIO_B 37
@@ -471,7 +403,7 @@ static const char *TAG = "I2C_LCD";
                           // D4->P4, D5->P5, D6->P6, D7->P7
 
 ///////////////////////////////////////////
-#define ALL_MENU 9
+#define ALL_MENU 10
 #define MAIN_MENU_ITEMS 4 
 #define POWER_FEED_MENU_ITEMS 4
 #define THREADS_MENU_ITEMS 4 
@@ -480,33 +412,115 @@ static const char *TAG = "I2C_LCD";
 #define METRIC_MENU_ITEMS 4
 #define TPI_MENU_ITEMS 4
 ////////////////////////////////////////////////
-#define SET_ROTARY_ENCODER_MENU_ITEMS 4
-#define SET_LEAD_SCREW_MENU_ITEMS 4
-#define SET_STEPPER_MOTOR_MENU_ITEMS 4
+#define SET_ROTARY_ENCODER_MENU_ITEMS 3
+#define SET_LEAD_SCREW_MENU_ITEMS 3
+#define SET_STEPPER_MOTOR_MENU_ITEMS 3
 
 
 
 int powerFeedValue=0;
-int MetricValue  =0;
-int TPIValue =0;
-int RottaryEncoderValue =0;
-int LeadScrewValue =0;
-int StepperMotorValue=0;
+int metricThreadsValue =0;
+int tpiThreadsValue =0;
+int rottaryEncoderValues =0;
+int leadScrewValue=0;
+int stepperMotorValue = 0;
+
+bool setSelection = true;
+bool setPowerFeed = false;
+bool setMetricThreads = false;
+bool setTPIthreads = false;
+bool setRottaryEncoder = false;
+bool setleadScrew = false;
+bool setStepperMotor=false;
 
 
-int path[ALL_MENU]={0,1,1,1,1,1,1,1,1};
+
+int path[ALL_MENU]={0,1,1,1,1,1,1,1,1,1};
 
 int PathMenu=1;// The menu that goes up and down the ">"
 int Selection =1;
+int maxRottarySelection = 3;
 const char *Main_Menu[MAIN_MENU_ITEMS]  = {"Main Menu","Power Feed", "Threads", "Settings"};
 const char *Threads_Menu[THREADS_MENU_ITEMS]  = {"Threads Menu","Metric", "TPI", "Return"};
 const char *Settings_Menu[SETTINGS_MENU_ITEMS]  = {"Settings Menu","Set Rot. Encoder", "Set Lead Screw", "Set Stepper Motor", "Return"};
 const char *OK_RETURN[4]={"","  Value : ","OK","Return"};
+const char *RETURN[3]={"","  Value : ","Return"};
 static uint8_t pcf8574_mask = PCF8574_BL; // Start with backlight ON
 
 pcnt_unit_handle_t pcnt_unit = NULL;
 
 void CreateMenu();
+
+
+void SetNVS(){
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
+
+
+    nvs_handle_t my_handle;
+    err = nvs_open(STORAGE, NVS_READWRITE, &my_handle);
+    if (err != ESP_OK) {
+        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+    } else {
+        printf("NVS handle opened successfully.\n");
+    }
+
+
+    int32_t counter = 42;
+
+    err = nvs_set_i32(my_handle, "my_counter", counter);// my_counter is the variable counter is the number
+    if (err == ESP_OK) {
+        // Commit written value.
+        err = nvs_commit(my_handle);
+        if (err != ESP_OK) {
+            printf("Error committing to NVS!\n");
+        }
+    } else {
+        printf("Error setting value in NVS!\n");
+    }
+
+}
+
+
+int GetNVS(){
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
+
+
+    nvs_handle_t my_handle;
+    err = nvs_open(STORAGE, NVS_READWRITE, &my_handle);
+    if (err != ESP_OK) {
+        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+    } else {
+        printf("NVS handle opened successfully.\n");
+    }
+
+
+    int32_t stored_value = 0;
+    err = nvs_get_i32(my_handle, "my_counter", &stored_value);
+    switch (err) {
+        case ESP_OK:
+            printf("The stored counter value is: %ld\n", stored_value);
+            break;
+        case ESP_ERR_NVS_NOT_FOUND:
+            printf("The value is not initialized yet!\n");
+            break;
+        default :
+            printf("Error (%s) reading!\n", esp_err_to_name(err));
+    }
+
+    nvs_close(my_handle);
+    return stored_value;
+
+}
 
 void ButtonPressed(void *pvParameters)
 {
@@ -529,7 +543,10 @@ void ButtonPressed(void *pvParameters)
                 button_pressed = true; // Set the flag to indicate the button is pressed
             }
         } else {
-            if (button_pressed) { // Check if the button was previously pressed
+            if (button_pressed) {
+                
+                Selection=1;
+                 // Check if the button was previously pressed
                 if (path[0] ==0){
                     if (path[1]==1){
                         // ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
@@ -544,22 +561,24 @@ void ButtonPressed(void *pvParameters)
                         PathMenu=3;
                         CreateMenu();
                     } else if (path[1]==3){
-                        // ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
                         path[0]=3;
                         path[1]=1;
                         PathMenu=4;
+                        maxRottarySelection=4;
                         CreateMenu();
                     }
 ////////////////////////////////////////////////////////////////////
                 } else if(path[0] ==1){//INFO POWER FEED
                     if (path[2]==1){
-                        printf("Get Counter");
+                        setPowerFeed= !setPowerFeed;//uhygvuvk
+                        setSelection = !setSelection;
                     } else if (path[2]==2){
-                        printf("RUN");
+                        printf("RUN<<<<<<<<<<<<<<<<<<<<<<<<<<<< POWER FEED");
                     } else if (path[2]==3){ // INFO RETURN TO MAIN MENU
                         path[0]=0;
                         path[2]=1; 
                         PathMenu=1;
+                        maxRottarySelection = 3;
                         CreateMenu();
                     }
 ////////////////////////////////////////////////////////////////////
@@ -581,35 +600,41 @@ void ButtonPressed(void *pvParameters)
                         CreateMenu();
                     }
 ////////////////////////////////////////////////////////////////////APO EDO KAI KATO 
-                }else if(path[0] ==3){//INFO Settings Menu 
+                } else if(path[0] ==3){//INFO Settings Menu 
                     if (path[4]==1){//BUG 
-                        path[0]=4;
-                        path[3]=1;
-                        PathMenu=5;
+                        path[0]=6;
+                        path[4]=1;
+                        PathMenu=7;
+                        maxRottarySelection = 2;
                         CreateMenu();
                     } else if (path[4]==2){
-                        path[0]=5;
-                        path[3]=1;
-                        PathMenu=6;
+                        path[0]=7;
+                        path[4]=1;
+                        PathMenu=8;
+                        maxRottarySelection = 2;
                         CreateMenu();
                     } else if (path[4]==3){//INFO RETURN TO MAIN MENU
-                        path[0]=0;
-                        path[3]=1; 
-                        PathMenu=1;
+                        path[0]=8;
+                        path[4]=1; 
+                        PathMenu=9;
+                        maxRottarySelection = 2;
                         CreateMenu();
                     } else if (path[4]==4){//INFO RETURN TO MAIN MENU
                         path[0]=0;
-                        path[3]=1; 
+                        path[4]=1; 
                         PathMenu=1;
+                        maxRottarySelection = 3;
                         CreateMenu();
-//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                    }
+
 ////////////////////////////////////////////////////////////////////
                 } else if(path[0] ==4){//INFO METRIC THREADS
                     if (path[5]==1){
-                        printf("VALUES");
-                    } else if (path[3]==2){
+                        setSelection = !setSelection;
+                        setMetricThreads = !setMetricThreads;
+                    } else if (path[5]==2){
                         printf("RUN");
-                    } else if (path[3]==3){//INFO RETURN TO MAIN MENU
+                    } else if (path[5]==3){//INFO RETURN TO MAIN MENU
                         path[0]=2;
                         path[5]=1; 
                         PathMenu=3;
@@ -618,7 +643,8 @@ void ButtonPressed(void *pvParameters)
 ////////////////////////////////////////////////////////////////////
                 } else if(path[0] ==5){//INFO TPI MENY
                     if (path[6]==1){
-                        printf("VALUES");
+                        setSelection = !setSelection;
+                        setTPIthreads = !setTPIthreads;
                     } else if (path[6]==2){
                         printf("RUN");
                     } else if (path[6]==3){//INFO RETURN TO MAIN MENU
@@ -628,57 +654,36 @@ void ButtonPressed(void *pvParameters)
                         CreateMenu();
                     }
 ////////////////////////////////////////////////////////////////////
-                } else if(path[0] ==6){//INFO THREADS MENY
-                    if (path[3]==1){
-                        path[0]=4;
-                        path[3]=1;
-                        PathMenu=5;
-                        CreateMenu();
-                    } else if (path[3]==2){
-                        path[0]=5;
-                        path[3]=1;
-                        PathMenu=6;
-                        CreateMenu();
-                    } else if (path[3]==3){//INFO RETURN TO MAIN MENU
-                        path[0]=0;
-                        path[3]=1; 
-                        PathMenu=1;
+                } else if(path[0] ==6){//INFO SET ROTTARY
+                    if (path[7]==1){
+                        printf("VALUES");
+                    } else if (path[7]==2){//INFO RETURN TO SETTINGS MENU
+                        path[0]=3;
+                        path[7]=1; 
+                        PathMenu=4;
+                        maxRottarySelection = 4;
                         CreateMenu();
                     }
 ////////////////////////////////////////////////////////////////////
-                } else if(path[0] ==7){//INFO THREADS MENY
-                    if (path[3]==1){
-                        path[0]=4;
-                        path[3]=1;
-                        PathMenu=5;
-                        CreateMenu();
-                    } else if (path[3]==2){
-                        path[0]=5;
-                        path[3]=1;
-                        PathMenu=6;
-                        CreateMenu();
-                    } else if (path[3]==3){//INFO RETURN TO MAIN MENU
-                        path[0]=0;
-                        path[3]=1; 
-                        PathMenu=1;
+                } else if(path[0] ==7){//INFO SET LEAD SCREW
+                    if (path[8]==1){
+                        printf("VALUES");
+                    } else if (path[8]==2){//INFO RETURN TO SETTINGS MENU
+                        path[0]=3;
+                        path[8]=1; 
+                        PathMenu=4;
+                        maxRottarySelection = 4;
                         CreateMenu();
                     }
 ////////////////////////////////////////////////////////////////////
-                } else if(path[0] ==7){//INFO THREADS MENY
-                    if (path[3]==1){
-                        path[0]=4;
-                        path[3]=1;
-                        PathMenu=5;
-                        CreateMenu();
-                    } else if (path[3]==2){
-                        path[0]=5;
-                        path[3]=1;
-                        PathMenu=6;
-                        CreateMenu();
-                    } else if (path[3]==3){//INFO RETURN TO MAIN MENU
-                        path[0]=0;
+                } else if(path[0] ==8){//INFO SET STEPPER MOTOR
+                    if (path[9]==1){
+                        printf("VALUES");
+                    } else if (path[9]==2){//INFO RETURN TO SETTINGS MENU
+                        path[0]=3;
                         path[3]=1; 
-                        PathMenu=1;
+                        PathMenu=4;
+                        maxRottarySelection = 4;
                         CreateMenu();
                     }
 ////////////////////////////////////////////////////////////////////
@@ -686,10 +691,10 @@ void ButtonPressed(void *pvParameters)
                 }
                 button_pressed = false; // Reset the flag
             }
-        }
+        
         // Add a delay to avoid bouncing and flooding the console
         vTaskDelay(pdMS_TO_TICKS(200));
-    }
+  } 
 }
 
 
@@ -719,6 +724,9 @@ void SelectorCounter(void *pvParameters)
     ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_b_config, &pcnt_chan_b));
 
     ESP_LOGI(TAG, "set edge and level actions for pcnt channels");
+
+
+
     ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_a, PCNT_CHANNEL_EDGE_ACTION_DECREASE, PCNT_CHANNEL_EDGE_ACTION_INCREASE));
     ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
     ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_b, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_DECREASE));
@@ -749,30 +757,61 @@ void SelectorCounter(void *pvParameters)
         ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
 
         if (prev_count != pulse_count){
-            
+            printf("Pulse Count PRO 4: %d PREV Count PRO : %d 4\n", pulse_count, prev_count);
             if (pulse_count %4 ==0) {
             printf("Pulse Count: %d\n", pulse_count);
-
+            
             // Determine the direction of rotation
             if (prev_count < pulse_count) {
                 // Clockwise rotation
-                Selection++;
-                if (Selection > 3) {
-                    Selection = 1;
+                if (setSelection == true){
+                    Selection++;
+                        if (Selection > maxRottarySelection) {
+                            Selection = 1;
+                    }
+                } else if (setPowerFeed == true){
+                        if (powerFeedValue<10){
+                            powerFeedValue++;
+                        }
+                }else if (setMetricThreads == true){
+                        if (metricThreadsValue<10){
+                            metricThreadsValue++;
+                        }
+                }else if (setTPIthreads == true){
+                        if (tpiThreadsValue<10){
+                            tpiThreadsValue++;
+                        }
                 }
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             } else {
+                if (setSelection== true){
                 // Counter-clockwise rotation
-                Selection--;
-                if (Selection < 1) {
-                    Selection = 3;
-                }
+                    Selection--;
+                    if (Selection < 1) {
+                        Selection = maxRottarySelection;
+                    }
+                } else if (setPowerFeed == true){
+                        if (powerFeedValue>0){
+                            powerFeedValue--;
+                        }
+                } else if (setMetricThreads == true){
+                        if (metricThreadsValue>0){
+                            metricThreadsValue--;
+                            
+                        }
+                } else if (setTPIthreads == true){
+                        if (tpiThreadsValue>0){
+                            tpiThreadsValue--;
+                        }
+                } 
             }
-
             printf("PathMenu %d Selection: %d Pulse Count: %d PrevCount: %d\n", PathMenu, Selection, pulse_count, prev_count);
             path[PathMenu] = Selection;
+
             CreateMenu();
             prev_count = pulse_count;
-
+            
+            
             }
         }
         vTaskDelay(pdMS_TO_TICKS(30));
@@ -959,7 +998,6 @@ static void PrintSettingsMenu(int pos, int menu){
     if (menu == 0){
         items = MAIN_MENU_ITEMS;
         menuToPrint= Main_Menu;
-        // value = powerFeedValue;
     } else if (menu == 2){
          items = THREADS_MENU_ITEMS;
           menuToPrint = Threads_Menu;
@@ -967,21 +1005,74 @@ static void PrintSettingsMenu(int pos, int menu){
          items = SETTINGS_MENU_ITEMS;
          menuToPrint = Settings_Menu;
     }
+    if ((menu==0)||(menu==2)){
+        for (int i = 0; i < items; i++) {
+            lcd_set_cursor(0, i); // Move cursor to row i
+            
+                if (i==0){
 
-    for (int i = 0; i < items; i++) {
-        lcd_set_cursor(0, i); // Move cursor to row i
-        if (i==0){
-
-            lcd_print(menuToPrint[i]);
-        } else{// Print the menu item
-            if (i == pos) {
-                lcd_print("> "); // Highlight the selected item
-             } else {
-                lcd_print("  "); // Add spaces for alignment
-            }
-            lcd_print(menuToPrint[i]);
+                    lcd_print(menuToPrint[i]);
+                } else{// Print the menu item
+                    if (i == pos) {
+                        lcd_print("> "); // Highlight the selected item
+                    } else {
+                        lcd_print("  "); // Add spaces for alignment
+                    }
+                    lcd_print(menuToPrint[i]);
+                }
+            } 
+        } else if(menu==3){
+            if (path[4]==1){
+                lcd_set_cursor(0, 0); 
+                lcd_print(menuToPrint[0]);
+                lcd_set_cursor(0, 1);
+                lcd_print("> "); 
+                lcd_print(menuToPrint[1]);
+                lcd_set_cursor(0, 2);
+                lcd_print("  "); 
+                lcd_print(menuToPrint[2]);
+                lcd_set_cursor(0, 3);
+                lcd_print("  "); 
+                lcd_print(menuToPrint[3]);
+            } else if (path[4]==2){
+                lcd_set_cursor(0, 0);
+                lcd_print(menuToPrint[0]);
+                lcd_set_cursor(0, 1);
+                lcd_print("  "); 
+                lcd_print(menuToPrint[1]);
+                lcd_set_cursor(0, 2);
+                lcd_print("> "); 
+                lcd_print(menuToPrint[2]);
+                lcd_set_cursor(0, 3);
+                lcd_print("  "); 
+                lcd_print(menuToPrint[3]);
+        }else if (path[4]==3){
+                lcd_set_cursor(0, 0);
+                lcd_print(menuToPrint[0]);
+                lcd_set_cursor(0, 1);
+                lcd_print("  "); 
+                lcd_print(menuToPrint[1]);
+                lcd_set_cursor(0, 2);
+                lcd_print("  "); 
+                lcd_print(menuToPrint[2]);
+                lcd_set_cursor(0, 3);
+                lcd_print("> "); 
+                lcd_print(menuToPrint[3]);
+        }else if (path[4]==4){
+                lcd_set_cursor(0, 0);
+                lcd_print(menuToPrint[0]);
+                lcd_set_cursor(0, 1);
+                lcd_print("  "); 
+                lcd_print(menuToPrint[2]);
+                lcd_set_cursor(0, 2);
+                lcd_print("  "); 
+                lcd_print(menuToPrint[3]);
+                lcd_set_cursor(0, 3);
+                lcd_print("> "); 
+                lcd_print(menuToPrint[4]);
         }
     }
+
 }
 
 static void PrintValuesMenu(int pos, int menu ){
@@ -996,22 +1087,24 @@ static void PrintValuesMenu(int pos, int menu ){
         items = POWER_FEED_MENU_ITEMS;
     } else if (menu == 4){
          OK_RETURN[0] = "Metric Threads";
-         value = MetricValue;
+         value = metricThreadsValue;
          items = METRIC_MENU_ITEMS;
     } else if (menu == 5){
          OK_RETURN[0] = "TPI";
-         value=TPIValue;
+         value=tpiThreadsValue;
          items=TPI_MENU_ITEMS;
     }else if (menu == 6){
-         OK_RETURN[0] = "Rotary Encoder";
+         RETURN[0] = "Rotary Encoder";
          items=SET_ROTARY_ENCODER_MENU_ITEMS;
-         value=RottaryEncoderValue;
+         value= rottaryEncoderValues;
     }else if (menu == 7){
-         OK_RETURN[0] = "Lead Screw";
-         value=LeadScrewValue;
+         RETURN[0] = "Lead Screw";
+         value= leadScrewValue;
+         items=SET_LEAD_SCREW_MENU_ITEMS;
     }else if (menu == 8){
-         OK_RETURN[0] = "Stepper Motor";
-         value=StepperMotorValue;
+         RETURN[0] = "Stepper Motor";
+         value= stepperMotorValue;
+         items=SET_STEPPER_MOTOR_MENU_ITEMS;
     }
     printf("MENU[0] = %s, MENU[1] = %s, MENU[2] = %s\n",OK_RETURN[0],OK_RETURN[1],OK_RETURN[2] );
     for (int i = 0; i < items; i++) {
@@ -1021,13 +1114,27 @@ static void PrintValuesMenu(int pos, int menu ){
         } else {
             lcd_print("  "); // Add spaces for alignment
         }
-        if (i==1){
-            sprintf(valueStr, "%d", value); // Convert integer to string
-            lcd_print(OK_RETURN[i]);
-            lcd_print(valueStr);
-        } else {
-            lcd_print(OK_RETURN[i]);
-        } // Print the menu item
+
+
+        if ((menu == 6) || (menu == 7) || (menu == 8)){
+            if (i==1){
+                sprintf(valueStr, "%d", value); // Convert integer to string
+                lcd_print(RETURN[i]);
+                lcd_print(valueStr);
+            } else {
+                lcd_print(RETURN[i]);
+            } 
+        } else{
+            if (i==1){
+                sprintf(valueStr, "%d", value); // Convert integer to string
+                lcd_print(OK_RETURN[i]);
+                lcd_print(valueStr);
+            } else {
+                lcd_print(OK_RETURN[i]);
+            } // Print the menu item
+        }
+
+
     }
 }
 
@@ -1037,143 +1144,144 @@ printf("path[0] = %d, path[1] = %d, path[2] = %d, path[3] = %d, path[4] = %d, pa
     {
 ////////////////////////////////////////////////////////////////////////////////
     case 0: //PRINT MAIN MENU
-        switch (path[1])
-        {
-        case 1: 
-            PrintSettingsMenu(1,path[0]);
-            break;
-        case 2:
-            PrintSettingsMenu(2,path[0]);
-            break;
-        case 3:
-            PrintSettingsMenu(3,path[0]);
-            break;
+        PrintSettingsMenu(path[1],path[0]);
+        // switch (path[1])
+        // {
+        // case 1: 
+        //     PrintSettingsMenu(1,path[0]);
+        //     break;
+        // case 2:
+        //     PrintSettingsMenu(2,path[0]);
+        //     break;
+        // case 3:
+        //     PrintSettingsMenu(3,path[0]);
+        //     break;
         
-        }
+        // }
         break;
 /////////////////////////////////////////////////////////////////////////
     case 1://PRINT POWER FEED MENU
-         switch (path[2]){
-            case 1:
-                PrintValuesMenu(path[2], path[0]);
-                break;
-            case 2:
-                PrintValuesMenu(path[2], path[0]);
-                break;
-             case 3:
-                PrintValuesMenu(path[2] ,path[0] );
-                break;
-            // break;
-         }
+        PrintValuesMenu(path[2], path[0]);
+        //  switch (path[2]){
+        //     case 1:
+        //         PrintValuesMenu(path[2], path[0]);
+        //         break;
+        //     case 2:
+        //         PrintValuesMenu(path[2], path[0]);
+        //         break;
+        //      case 3:
+        //         PrintValuesMenu(path[2] ,path[0] );
+        //         break;
+        //     // break;
+        //  }
         break;
 /////////////////////////////////////////////////////////////////////////
     case 2://PRINT THREADS MENU
-        switch (path[3])
-        {
-            case 1:
-                PrintSettingsMenu(1,path[0]);
-                break;
-            case 2:
-                PrintSettingsMenu(2,path[0]);
-                break;
-            case 3:
-                PrintSettingsMenu(3,path[0]);
-                break;
+        PrintSettingsMenu(path[3],path[0]);
+        // switch (path[3])
+        // {
+        //     case 1:
+        //         PrintSettingsMenu(1,path[0]);
+        //         break;
+        //     case 2:
+        //         PrintSettingsMenu(2,path[0]);
+        //         break;
+        //     case 3:
+        //         PrintSettingsMenu(3,path[0]);
+        //         break;
 
-        }
+        // }
         break;
 /////////////////////////////////////////////////////////////////////////
     case 3://PRINT SETTINGS MENU
-        switch (path[4])
-        {
-            case 1:
-                PrintSettingsMenu(0,path[0]);
-                break;
-            case 2:
-                PrintSettingsMenu(1,path[0]);
-                break;
-            case 3:
-                PrintSettingsMenu(2,path[0]);
-                break;
-            case 4:
-                PrintSettingsMenu(3,path[0]);
-                break;
-        }
+        PrintSettingsMenu(path[4],path[0]);
+        // switch (path[4])
+        // {
+        //     case 1:
+        //         PrintSettingsMenu(1,path[0]);
+        //         break;
+        //     case 2:
+        //         PrintSettingsMenu(2,path[0]);
+        //         break;
+        //     case 3:
+        //         PrintSettingsMenu(3,path[0]);
+        //         break;
+        //     case 4:
+        //         PrintSettingsMenu(4,path[0]);
+        //         break;
+        // }
         break;
 /////////////////////////////////////////////////////////////////////////
     case 4://PRINT METRIC THREADS
-        switch (path[5])
-        {
-            case 0:
-                PrintValuesMenu(0,path[0]);
-                break;
-            case 1:
-                PrintValuesMenu(2,path[0]);
-                break;
-            case 2:
-                PrintValuesMenu(3,path[0]);
-                break;
-        }
+        PrintValuesMenu(path[5],path[0]);
+        // switch (path[5])
+        // {
+        //     case 1:
+        //         PrintValuesMenu(1,path[0]);
+        //         break;
+        //     case 2:
+        //         PrintValuesMenu(2,path[0]);
+        //         break;
+        //     case 3:
+        //         PrintValuesMenu(3,path[0]);
+        //         break;
+        // }
         break;
 /////////////////////////////////////////////////////////////////////////
     case 5://PRINT TPI THREADS
-        switch (path[6])
-        {
-            case 0:
-                PrintValuesMenu(0,path[0]);
-                break;
-            case 1:
-                PrintValuesMenu(2,path[0]);
-                break;
-            case 2:
-                PrintValuesMenu(3,path[0]);
-                break;
-        }
+        PrintValuesMenu(path[6],path[0]);
+        // switch (path[6])
+        // {
+        //     case 1:
+        //         PrintValuesMenu(1,path[0]);
+        //         break;
+        //     case 2:
+        //         PrintValuesMenu(2,path[0]);
+        //         break;
+        //     case 3:
+        //         PrintValuesMenu(3,path[0]);
+        //         break;
+        // }
         break;
 /////////////////////////////////////////////////////////////////////////
     case 6://PRINT SET ROTTARY ENCODER PPR
-        switch (path[7])
-        {
-            case 0:
-                PrintValuesMenu(0,path[0]);
-                break;
-            case 1:
-                PrintValuesMenu(2,path[0]);
-                break;
-            case 2:
-                PrintValuesMenu(3,path[0]);
-                break;
-        }
+        PrintValuesMenu(path[7],path[0]);
+        // switch (path[7])
+        // {
+        //     case 1:
+        //         PrintValuesMenu(1,path[0]);
+        //         break;
+        //     case 2:
+        //         PrintValuesMenu(2,path[0]);
+        //         break;
+        // }
         break;
 /////////////////////////////////////////////////////////////////////////
     case 7://PRINT SET LEAD SCREW PITCH
-        switch (path[8])
-        {
-            case 0:
-                PrintValuesMenu(0,path[0]);
-                break;
-            case 1:
-                PrintValuesMenu(2,path[0]);
-                break;
-            case 2:
-                PrintValuesMenu(3,path[0]);
-                break;
-        }
+    PrintValuesMenu(path[8],path[0]);
+        // switch (path[8])
+        // {
+        //     case 1:
+        //         PrintValuesMenu(1,path[0]);
+        //         break;
+        //     case 2:
+        //         PrintValuesMenu(2,path[0]);
+        //         break;
+        // }
         break;
 /////////////////////////////////////////////////////////////////////////
     case 8://PRINT SET STEPPER MOTOR
-        switch (path[9])
-        {
-            case 0:
-                PrintValuesMenu(0,path[0]);
-                break;
-            case 1:
-                PrintValuesMenu(2,path[0]);
-                break;
-            case 2:
-                PrintValuesMenu(3,path[0]);
-                break;
-        }
+        PrintValuesMenu(path[9],path[0]);
+        break;
+        // switch (path[9])
+        // {
+        //     case 1:
+        //         PrintValuesMenu(1,path[0]);
+        //         break;
+        //     case 2:
+        //         PrintValuesMenu(2,path[0]);
+        //         break;
+        // }
     default:
         break;
     }

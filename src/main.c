@@ -32,7 +32,7 @@
 // #define DirPin GPIO_NUM_4
 // #define PulcePin GPIO_NUM_5
 
-// #define STORAGE "Data"
+
 
 // #define EXAMPLE_PCNT_HIGH_LIMIT 2400//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 // #define EXAMPLE_PCNT_LOW_LIMIT  -2400//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -344,6 +344,20 @@
 #include "nvs_flash.h"
 #include "nvs.h"
 
+
+SemaphoreHandle_t xStopTaskBSemaphore = NULL;
+QueueHandle_t xStartTasksQueue = NULL;
+TaskHandle_t TaskA_Handle = NULL;
+TaskHandle_t TaskB_Handle = NULL;
+
+void SetNVS(const char* , int32_t );
+int GetNVS(const char* );
+void CreateMenu();
+void InitializeValues();
+
+#define STORAGE "Data"
+
+
 #define SELECTOR_GPIO_A 36
 #define SELECTOR_GPIO_B 37
 #define SELECTOR_GPIO_BUTTON 40
@@ -418,12 +432,20 @@ static const char *TAG = "I2C_LCD";
 
 
 
-int powerFeedValue=0;
-int metricThreadsValue =0;
-int tpiThreadsValue =0;
-int rottaryEncoderValues =0;
-int leadScrewValue=0;
-int stepperMotorValue = 0;
+float powerFeedValue=0.10;
+float metricThreadsValue =0.75;
+float tpiThreadsValue =0.0;
+int rottaryEncoderValues;
+int leadScrewValue;
+int stepperMotorValue;
+
+
+int FinalpowerFeedValue=0;
+int FinalmetricThreadsValue =0;
+// int FinaltpiThreadsValue =0;
+int FinalrottaryEncoderValues;
+int FinalleadScrewValue;
+int FinalstepperMotorValue;
 
 bool setSelection = true;
 bool setPowerFeed = false;
@@ -445,14 +467,19 @@ const char *Threads_Menu[THREADS_MENU_ITEMS]  = {"Threads Menu","Metric", "TPI",
 const char *Settings_Menu[SETTINGS_MENU_ITEMS]  = {"Settings Menu","Set Rot. Encoder", "Set Lead Screw", "Set Stepper Motor", "Return"};
 const char *OK_RETURN[4]={"","  Value : ","OK","Return"};
 const char *RETURN[3]={"","  Value : ","Return"};
+const char *TYPE[1]={""};
 static uint8_t pcf8574_mask = PCF8574_BL; // Start with backlight ON
 
 pcnt_unit_handle_t pcnt_unit = NULL;
 
-void CreateMenu();
 
+void InitializeValues() {
+    rottaryEncoderValues = GetNVS("rottary"); // Initialize inside a function
+    leadScrewValue = GetNVS("lead");
+    stepperMotorValue = GetNVS("stepper");
+}
 
-void SetNVS(){
+void SetNVS(const char* key, int32_t value){
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -470,9 +497,7 @@ void SetNVS(){
     }
 
 
-    int32_t counter = 42;
-
-    err = nvs_set_i32(my_handle, "my_counter", counter);// my_counter is the variable counter is the number
+    err = nvs_set_i32(my_handle, key, value);// my_counter is the variable counter is the number
     if (err == ESP_OK) {
         // Commit written value.
         err = nvs_commit(my_handle);
@@ -486,7 +511,7 @@ void SetNVS(){
 }
 
 
-int GetNVS(){
+int GetNVS(const char* key){
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -505,13 +530,14 @@ int GetNVS(){
 
 
     int32_t stored_value = 0;
-    err = nvs_get_i32(my_handle, "my_counter", &stored_value);
+    err = nvs_get_i32(my_handle, key, &stored_value);
     switch (err) {
         case ESP_OK:
             printf("The stored counter value is: %ld\n", stored_value);
             break;
         case ESP_ERR_NVS_NOT_FOUND:
             printf("The value is not initialized yet!\n");
+            SetNVS(key, 0);
             break;
         default :
             printf("Error (%s) reading!\n", esp_err_to_name(err));
@@ -572,8 +598,10 @@ void ButtonPressed(void *pvParameters)
                     if (path[2]==1){
                         setPowerFeed= !setPowerFeed;//uhygvuvk
                         setSelection = !setSelection;
+                        CreateMenu();
                     } else if (path[2]==2){
-                        printf("RUN<<<<<<<<<<<<<<<<<<<<<<<<<<<< POWER FEED");
+                        xSemaphoreGive(xStopTaskBSemaphore);
+                        vTaskDelete(NULL);
                     } else if (path[2]==3){ // INFO RETURN TO MAIN MENU
                         path[0]=0;
                         path[2]=1; 
@@ -632,8 +660,10 @@ void ButtonPressed(void *pvParameters)
                     if (path[5]==1){
                         setSelection = !setSelection;
                         setMetricThreads = !setMetricThreads;
+                        CreateMenu();
                     } else if (path[5]==2){
-                        printf("RUN");
+                        xSemaphoreGive(xStopTaskBSemaphore);
+                        vTaskDelete(NULL);
                     } else if (path[5]==3){//INFO RETURN TO MAIN MENU
                         path[0]=2;
                         path[5]=1; 
@@ -645,8 +675,10 @@ void ButtonPressed(void *pvParameters)
                     if (path[6]==1){
                         setSelection = !setSelection;
                         setTPIthreads = !setTPIthreads;
+                        CreateMenu();
                     } else if (path[6]==2){
-                        printf("RUN");
+                        xSemaphoreGive(xStopTaskBSemaphore);
+                        vTaskDelete(NULL);
                     } else if (path[6]==3){//INFO RETURN TO MAIN MENU
                         path[0]=2;
                         path[6]=1; 
@@ -656,7 +688,16 @@ void ButtonPressed(void *pvParameters)
 ////////////////////////////////////////////////////////////////////
                 } else if(path[0] ==6){//INFO SET ROTTARY
                     if (path[7]==1){
-                        printf("VALUES");
+                        setSelection = !setSelection;
+                        
+                        if (setRottaryEncoder==false){
+                            setRottaryEncoder = true;
+                            CreateMenu();
+                        } else{
+                            setRottaryEncoder = !setRottaryEncoder;
+                            SetNVS("rottary", rottaryEncoderValues);
+                            CreateMenu();
+                        }
                     } else if (path[7]==2){//INFO RETURN TO SETTINGS MENU
                         path[0]=3;
                         path[7]=1; 
@@ -667,7 +708,16 @@ void ButtonPressed(void *pvParameters)
 ////////////////////////////////////////////////////////////////////
                 } else if(path[0] ==7){//INFO SET LEAD SCREW
                     if (path[8]==1){
-                        printf("VALUES");
+                        setSelection = !setSelection;
+                        
+                        if (setleadScrew==false){
+                            setleadScrew = true;
+                            CreateMenu();
+                        } else{
+                            setleadScrew = !setleadScrew;
+                            SetNVS("rottary", leadScrewValue);
+                            CreateMenu();
+                        }
                     } else if (path[8]==2){//INFO RETURN TO SETTINGS MENU
                         path[0]=3;
                         path[8]=1; 
@@ -678,7 +728,16 @@ void ButtonPressed(void *pvParameters)
 ////////////////////////////////////////////////////////////////////
                 } else if(path[0] ==8){//INFO SET STEPPER MOTOR
                     if (path[9]==1){
-                        printf("VALUES");
+                        setSelection = !setSelection;
+                        
+                        if (setStepperMotor==false){
+                            setStepperMotor = true;
+                            CreateMenu();
+                        } else{
+                            setStepperMotor = !setStepperMotor;
+                            SetNVS("rottary", stepperMotorValue);
+                            CreateMenu();
+                        }
                     } else if (path[9]==2){//INFO RETURN TO SETTINGS MENU
                         path[0]=3;
                         path[3]=1; 
@@ -770,18 +829,56 @@ void SelectorCounter(void *pvParameters)
                             Selection = 1;
                     }
                 } else if (setPowerFeed == true){
-                        if (powerFeedValue<10){
-                            powerFeedValue++;
+                        if (powerFeedValue<0.40){
+                            powerFeedValue+=0.10;
+                            if (powerFeedValue > 0.40) { // Ensure it doesn't go below zero
+                                powerFeedValue = 0.40;
+                            }
+                            FinalpowerFeedValue = (int)(powerFeedValue*100+0.1);
                         }
                 }else if (setMetricThreads == true){
-                        if (metricThreadsValue<10){
-                            metricThreadsValue++;
+                        if (metricThreadsValue<3.00){
+                            metricThreadsValue+=0.05;
+                            if (metricThreadsValue>3.00){
+                                metricThreadsValue=3.00;
+                            }
+                            FinalmetricThreadsValue = (int)(metricThreadsValue*100+0.5);
                         }
                 }else if (setTPIthreads == true){
-                        if (tpiThreadsValue<10){
+                        if (tpiThreadsValue<30){
                             tpiThreadsValue++;
+                            if(tpiThreadsValue>30){
+                                tpiThreadsValue=30;
+                            }
+                            FinalmetricThreadsValue = (int)((25.4/tpiThreadsValue)*100+0.5);
+
+                        }
+                }else if (setRottaryEncoder == true){
+                        if (rottaryEncoderValues<10000){
+                            rottaryEncoderValues+=100;
+                            if (rottaryEncoderValues>10000){
+                                rottaryEncoderValues=10000;
+                            }
+                        }
+
+                }else if (setleadScrew == true){
+                        if (leadScrewValue<300){
+                            leadScrewValue+=10;
+                            if (leadScrewValue>300){
+                                leadScrewValue =300;
+                            }
+                        } 
+                }else if (setStepperMotor == true){
+                        if (stepperMotorValue<200){
+                            stepperMotorValue+=10;
+                            if (stepperMotorValue>200){
+                                stepperMotorValue = 200;
+                            }
                         }
                 }
+
+
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             } else {
                 if (setSelection== true){
@@ -791,30 +888,69 @@ void SelectorCounter(void *pvParameters)
                         Selection = maxRottarySelection;
                     }
                 } else if (setPowerFeed == true){
-                        if (powerFeedValue>0){
-                            powerFeedValue--;
+                        if (powerFeedValue>0.0){
+                            powerFeedValue -= 0.10;
+                            if (powerFeedValue<0.1){
+                                powerFeedValue = 0.1;
+                            }
                         }
+                        FinalpowerFeedValue = (int)(powerFeedValue*100+0.1);
                 } else if (setMetricThreads == true){
                         if (metricThreadsValue>0){
-                            metricThreadsValue--;
-                            
+                            metricThreadsValue-=0.05;
+                            if (metricThreadsValue < 0.75){
+                                metricThreadsValue=0.75;
+                            }
                         }
+                        FinalmetricThreadsValue = (int)(metricThreadsValue*100+0.5);
                 } else if (setTPIthreads == true){
                         if (tpiThreadsValue>0){
                             tpiThreadsValue--;
+                            if (tpiThreadsValue==0){
+                                tpiThreadsValue=1;
+                            }
                         }
-                } 
+                        FinalmetricThreadsValue = (int)((25.4/tpiThreadsValue)*100+0.5);
+                } else if (setRottaryEncoder == true){
+                        if (rottaryEncoderValues>0){
+                            rottaryEncoderValues-=100;
+                            if (rottaryEncoderValues<2000){
+                                rottaryEncoderValues=2000;
+                            }
+                        }
+                }else if (setleadScrew == true){
+                        if (leadScrewValue>0){
+                            leadScrewValue-=10;
+                            if (leadScrewValue<0){
+                                leadScrewValue-=0;
+                            }
+                        }
+                }else if (setStepperMotor == true){
+                        if (stepperMotorValue>0){
+                            stepperMotorValue-=10;
+                            if (stepperMotorValue<0){
+                                stepperMotorValue = 0;
+                            }
+                        }
+                }
             }
-            printf("PathMenu %d Selection: %d Pulse Count: %d PrevCount: %d\n", PathMenu, Selection, pulse_count, prev_count);
+            printf("PathMenu %d Selection: %d Pulse Count: %d PrevCount: %d Metric: %d, Metric Dec %.2f, Power %.2f, F.Power %d \n", PathMenu, Selection, pulse_count, prev_count, FinalmetricThreadsValue, metricThreadsValue, powerFeedValue,FinalpowerFeedValue);
             path[PathMenu] = Selection;
 
             CreateMenu();
             prev_count = pulse_count;
-            
-            
+
+
             }
         }
         vTaskDelay(pdMS_TO_TICKS(30));
+        
+
+        if (xSemaphoreTake(xStopTaskBSemaphore, 0) == pdTRUE) {
+            ESP_LOGI("TaskB", "TaskB received stop signal");
+            vTaskDelete(NULL); // Delete TaskB
+        }
+
     }
 }
 
@@ -1014,9 +1150,9 @@ static void PrintSettingsMenu(int pos, int menu){
                     lcd_print(menuToPrint[i]);
                 } else{// Print the menu item
                     if (i == pos) {
-                        lcd_print("> "); // Highlight the selected item
+                        lcd_print(">"); // Highlight the selected item
                     } else {
-                        lcd_print("  "); // Add spaces for alignment
+                        lcd_print(" "); // Add spaces for alignment
                     }
                     lcd_print(menuToPrint[i]);
                 }
@@ -1026,49 +1162,49 @@ static void PrintSettingsMenu(int pos, int menu){
                 lcd_set_cursor(0, 0); 
                 lcd_print(menuToPrint[0]);
                 lcd_set_cursor(0, 1);
-                lcd_print("> "); 
+                lcd_print(">"); 
                 lcd_print(menuToPrint[1]);
                 lcd_set_cursor(0, 2);
-                lcd_print("  "); 
+                lcd_print(" "); 
                 lcd_print(menuToPrint[2]);
                 lcd_set_cursor(0, 3);
-                lcd_print("  "); 
+                lcd_print(" "); 
                 lcd_print(menuToPrint[3]);
             } else if (path[4]==2){
                 lcd_set_cursor(0, 0);
                 lcd_print(menuToPrint[0]);
                 lcd_set_cursor(0, 1);
-                lcd_print("  "); 
+                lcd_print(" "); 
                 lcd_print(menuToPrint[1]);
                 lcd_set_cursor(0, 2);
-                lcd_print("> "); 
+                lcd_print(">"); 
                 lcd_print(menuToPrint[2]);
                 lcd_set_cursor(0, 3);
-                lcd_print("  "); 
+                lcd_print(" "); 
                 lcd_print(menuToPrint[3]);
         }else if (path[4]==3){
                 lcd_set_cursor(0, 0);
                 lcd_print(menuToPrint[0]);
                 lcd_set_cursor(0, 1);
-                lcd_print("  "); 
+                lcd_print(" "); 
                 lcd_print(menuToPrint[1]);
                 lcd_set_cursor(0, 2);
-                lcd_print("  "); 
+                lcd_print(" "); 
                 lcd_print(menuToPrint[2]);
                 lcd_set_cursor(0, 3);
-                lcd_print("> "); 
+                lcd_print(">"); 
                 lcd_print(menuToPrint[3]);
         }else if (path[4]==4){
                 lcd_set_cursor(0, 0);
                 lcd_print(menuToPrint[0]);
                 lcd_set_cursor(0, 1);
-                lcd_print("  "); 
+                lcd_print(" "); 
                 lcd_print(menuToPrint[2]);
                 lcd_set_cursor(0, 2);
-                lcd_print("  "); 
+                lcd_print(" "); 
                 lcd_print(menuToPrint[3]);
                 lcd_set_cursor(0, 3);
-                lcd_print("> "); 
+                lcd_print(">"); 
                 lcd_print(menuToPrint[4]);
         }
     }
@@ -1078,57 +1214,74 @@ static void PrintSettingsMenu(int pos, int menu){
 static void PrintValuesMenu(int pos, int menu ){
     lcd_cmd(LCD_CMD_CLEAR_DISPLAY);
     int items =0;
-    int value = 0;
+    float value = 0.0;
     char valueStr[16];
 
     if (menu == 1){
         OK_RETURN[0] = "Power Feed Menu";
         value = powerFeedValue;
         items = POWER_FEED_MENU_ITEMS;
+        TYPE[0] = "mm";
     } else if (menu == 4){
          OK_RETURN[0] = "Metric Threads";
          value = metricThreadsValue;
          items = METRIC_MENU_ITEMS;
+        TYPE[0] = "mm";
     } else if (menu == 5){
          OK_RETURN[0] = "TPI";
          value=tpiThreadsValue;
          items=TPI_MENU_ITEMS;
+         TYPE[0] = "Inch";
     }else if (menu == 6){
          RETURN[0] = "Rotary Encoder";
          items=SET_ROTARY_ENCODER_MENU_ITEMS;
          value= rottaryEncoderValues;
+        TYPE[0] = "PRM";
     }else if (menu == 7){
          RETURN[0] = "Lead Screw";
          value= leadScrewValue;
          items=SET_LEAD_SCREW_MENU_ITEMS;
+         TYPE[0] = "Pitch";
     }else if (menu == 8){
          RETURN[0] = "Stepper Motor";
          value= stepperMotorValue;
          items=SET_STEPPER_MOTOR_MENU_ITEMS;
+         TYPE[0] = "SPR";
     }
+    float y = (int)(value * 100) / 100.0; 
     printf("MENU[0] = %s, MENU[1] = %s, MENU[2] = %s\n",OK_RETURN[0],OK_RETURN[1],OK_RETURN[2] );
     for (int i = 0; i < items; i++) {
         lcd_set_cursor(0, i); // Move cursor to row i
         if (i == pos) {
-            lcd_print("> "); // Highlight the selected item
+            lcd_print(">"); // Highlight the selected item
         } else {
-            lcd_print("  "); // Add spaces for alignment
+            lcd_print(" "); // Add spaces for alignment
         }
 
 
-        if ((menu == 6) || (menu == 7) || (menu == 8)){
+        if ((menu == 6) || (menu == 7) || (menu == 8)){ // ONLY RETURN GLOBAL VARIABLES >>>LEAD >>>>STEPPER >>>>>ROTTARY
             if (i==1){
-                sprintf(valueStr, "%d", value); // Convert integer to string
+                sprintf(valueStr, "%.2f", y); // Convert integer to string
                 lcd_print(RETURN[i]);
                 lcd_print(valueStr);
+                lcd_print(" ");
+                lcd_print(TYPE[0]);
+                if (setleadScrew || setRottaryEncoder || setStepperMotor){
+                     lcd_print("<");
+                } 
             } else {
                 lcd_print(RETURN[i]);
             } 
         } else{
             if (i==1){
-                sprintf(valueStr, "%d", value); // Convert integer to string
+                sprintf(valueStr, "%.2f", y); // RUN AND RETURN >>>>METRIC >>>>TPI >>>>POWERFEED
                 lcd_print(OK_RETURN[i]);
                 lcd_print(valueStr);
+                lcd_print(" ");
+                lcd_print(TYPE[0]);
+                if (setMetricThreads || setTPIthreads || setPowerFeed){
+                     lcd_print("<");
+                }
             } else {
                 lcd_print(OK_RETURN[i]);
             } // Print the menu item
@@ -1145,143 +1298,39 @@ printf("path[0] = %d, path[1] = %d, path[2] = %d, path[3] = %d, path[4] = %d, pa
 ////////////////////////////////////////////////////////////////////////////////
     case 0: //PRINT MAIN MENU
         PrintSettingsMenu(path[1],path[0]);
-        // switch (path[1])
-        // {
-        // case 1: 
-        //     PrintSettingsMenu(1,path[0]);
-        //     break;
-        // case 2:
-        //     PrintSettingsMenu(2,path[0]);
-        //     break;
-        // case 3:
-        //     PrintSettingsMenu(3,path[0]);
-        //     break;
-        
-        // }
         break;
 /////////////////////////////////////////////////////////////////////////
     case 1://PRINT POWER FEED MENU
         PrintValuesMenu(path[2], path[0]);
-        //  switch (path[2]){
-        //     case 1:
-        //         PrintValuesMenu(path[2], path[0]);
-        //         break;
-        //     case 2:
-        //         PrintValuesMenu(path[2], path[0]);
-        //         break;
-        //      case 3:
-        //         PrintValuesMenu(path[2] ,path[0] );
-        //         break;
-        //     // break;
-        //  }
         break;
 /////////////////////////////////////////////////////////////////////////
     case 2://PRINT THREADS MENU
         PrintSettingsMenu(path[3],path[0]);
-        // switch (path[3])
-        // {
-        //     case 1:
-        //         PrintSettingsMenu(1,path[0]);
-        //         break;
-        //     case 2:
-        //         PrintSettingsMenu(2,path[0]);
-        //         break;
-        //     case 3:
-        //         PrintSettingsMenu(3,path[0]);
-        //         break;
-
-        // }
         break;
 /////////////////////////////////////////////////////////////////////////
     case 3://PRINT SETTINGS MENU
         PrintSettingsMenu(path[4],path[0]);
-        // switch (path[4])
-        // {
-        //     case 1:
-        //         PrintSettingsMenu(1,path[0]);
-        //         break;
-        //     case 2:
-        //         PrintSettingsMenu(2,path[0]);
-        //         break;
-        //     case 3:
-        //         PrintSettingsMenu(3,path[0]);
-        //         break;
-        //     case 4:
-        //         PrintSettingsMenu(4,path[0]);
-        //         break;
-        // }
         break;
 /////////////////////////////////////////////////////////////////////////
     case 4://PRINT METRIC THREADS
         PrintValuesMenu(path[5],path[0]);
-        // switch (path[5])
-        // {
-        //     case 1:
-        //         PrintValuesMenu(1,path[0]);
-        //         break;
-        //     case 2:
-        //         PrintValuesMenu(2,path[0]);
-        //         break;
-        //     case 3:
-        //         PrintValuesMenu(3,path[0]);
-        //         break;
-        // }
         break;
 /////////////////////////////////////////////////////////////////////////
     case 5://PRINT TPI THREADS
         PrintValuesMenu(path[6],path[0]);
-        // switch (path[6])
-        // {
-        //     case 1:
-        //         PrintValuesMenu(1,path[0]);
-        //         break;
-        //     case 2:
-        //         PrintValuesMenu(2,path[0]);
-        //         break;
-        //     case 3:
-        //         PrintValuesMenu(3,path[0]);
-        //         break;
-        // }
         break;
 /////////////////////////////////////////////////////////////////////////
     case 6://PRINT SET ROTTARY ENCODER PPR
         PrintValuesMenu(path[7],path[0]);
-        // switch (path[7])
-        // {
-        //     case 1:
-        //         PrintValuesMenu(1,path[0]);
-        //         break;
-        //     case 2:
-        //         PrintValuesMenu(2,path[0]);
-        //         break;
-        // }
         break;
 /////////////////////////////////////////////////////////////////////////
     case 7://PRINT SET LEAD SCREW PITCH
     PrintValuesMenu(path[8],path[0]);
-        // switch (path[8])
-        // {
-        //     case 1:
-        //         PrintValuesMenu(1,path[0]);
-        //         break;
-        //     case 2:
-        //         PrintValuesMenu(2,path[0]);
-        //         break;
-        // }
         break;
 /////////////////////////////////////////////////////////////////////////
     case 8://PRINT SET STEPPER MOTOR
         PrintValuesMenu(path[9],path[0]);
         break;
-        // switch (path[9])
-        // {
-        //     case 1:
-        //         PrintValuesMenu(1,path[0]);
-        //         break;
-        //     case 2:
-        //         PrintValuesMenu(2,path[0]);
-        //         break;
-        // }
     default:
         break;
     }
@@ -1289,49 +1338,171 @@ printf("path[0] = %d, path[1] = %d, path[2] = %d, path[3] = %d, path[4] = %d, pa
 
 void app_main(void)
 {
-    // 1. Initialize I2C bus
+        xStopTaskBSemaphore = xSemaphoreCreateBinary();
+    if (xStopTaskBSemaphore == NULL) {
+        ESP_LOGE("Main", "Failed to create semaphore");
+        return;
+    }
+
+    // Create the queue to start TaskC and TaskE
+    xStartTasksQueue = xQueueCreate(1, sizeof(int));
+    if (xStartTasksQueue == NULL) {
+        ESP_LOGE("Main", "Failed to create queue");
+        return;
+    }
+    InitializeValues();
+    // InitializeValues();
+
+    printf(  "Rottary : %d, Lead : %d, Stepper: %d",  rottaryEncoderValues ,   leadScrewValue ,   stepperMotorValue );
+
+
     i2c_master_init();
-
-    // 2. Initialize the LCD
     lcd_init();
-
-    // 3. Write something to the LCD
-    
     CreateMenu();
-    // lcd_set_cursor(0, 0);
-    // lcd_print("KYRIAKO");
-    // lcd_set_cursor(0, 1);
-    // lcd_print("GAMIESE");
-    // lcd_set_cursor(0, 2);
-    // lcd_print("KYRIAKO");
-    // lcd_set_cursor(0, 3);
-    // lcd_print("GAMIESE");
 
-    xTaskCreatePinnedToCore(
+
+    xTaskCreate(
         SelectorCounter,            // Function that implements the task
         "SelectorCounter",      // Name of the task
         4096,             // Stack size
         NULL,             // Task input parameter
         1,                // Priority of the task
-        NULL,             // Task handle
-        tskNO_AFFINITY
+        // NULL,             // Task handle
+        &TaskA_Handle
         // 1                 // Core where the task should run (1 for core 1, 0 for core 0)
 
     );
 
-        xTaskCreatePinnedToCore(
+    //     xTaskCreate(TaskA, "TaskA", 4096, NULL, 1, &TaskA_Handle);
+//     xTaskCreate(TaskB, "TaskB", 4096, NULL, 1, &TaskB_Handle);
+
+
+    xTaskCreate(
         ButtonPressed,            // Function that implements the task
         "ButtonPressed",      // Name of the task
         4096,             // Stack size
         NULL,             // Task input parameter
         1,                // Priority of the task
-        NULL,             // Task handle
-        tskNO_AFFINITY
+        // NULL,             // Task handle
+        &TaskB_Handle
         // 1                 // Core where the task should run (1 for core 1, 0 for core 0)
 
     );
     // Loop forever
+
+        while (eTaskGetState(TaskA_Handle) != eDeleted || eTaskGetState(TaskB_Handle) != eDeleted) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    int x=10;
     while (true) {
+        printf("sdfaferqageqrg %d\n",x);
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
+
+///////////////////////////////////////////////////////////////////////////////////////
+// #include <freertos/FreeRTOS.h>
+// #include <freertos/task.h>
+// #include <freertos/semphr.h>
+// #include <freertos/queue.h>
+// #include <esp_log.h>
+
+// // Task handles
+// TaskHandle_t TaskA_Handle = NULL;
+// TaskHandle_t TaskB_Handle = NULL;
+// TaskHandle_t TaskC_Handle = NULL;
+// TaskHandle_t TaskE_Handle = NULL;
+
+// // Semaphore to signal TaskB to stop
+// SemaphoreHandle_t xStopTaskBSemaphore = NULL;
+
+// // Queue to start TaskC and TaskE
+// QueueHandle_t xStartTasksQueue = NULL;
+
+// // TaskA function
+// void TaskA(void *pvParameters) {
+//     while (1) {
+//         ESP_LOGI("TaskA", "TaskA is running");
+
+//         // Simulate some work
+//         vTaskDelay(pdMS_TO_TICKS(1000));
+
+//         // Check condition to stop TaskB
+//         if (/* some condition */) {
+//             ESP_LOGI("TaskA", "TaskA signaling TaskB to stop");
+//             xSemaphoreGive(xStopTaskBSemaphore); // Signal TaskB to stop
+
+//             // Stop itself
+//             ESP_LOGI("TaskA", "TaskA stopping itself");
+//             vTaskDelete(NULL); // Delete TaskA
+//         }
+//     }
+// }
+
+// // TaskB function
+// void TaskB(void *pvParameters) {
+//     while (1) {
+//         ESP_LOGI("TaskB", "TaskB is running");
+
+//         // Check if TaskB should stop
+//         if (xSemaphoreTake(xStopTaskBSemaphore, pdMS_TO_TICKS(10)) {
+//             ESP_LOGI("TaskB", "TaskB received stop signal");
+//             vTaskDelete(NULL); // Delete TaskB
+//         }
+
+//         // Simulate some work
+//         vTaskDelay(pdMS_TO_TICKS(1000));
+//     }
+// }
+
+// // TaskC function
+// void TaskC(void *pvParameters) {
+//     while (1) {
+//         ESP_LOGI("TaskC", "TaskC is running");
+
+//         // Simulate some work
+//         vTaskDelay(pdMS_TO_TICKS(1000));
+//     }
+// }
+
+// // TaskE function
+// void TaskE(void *pvParameters) {
+//     while (1) {
+//         ESP_LOGI("TaskE", "TaskE is running");
+
+//         // Simulate some work
+//         vTaskDelay(pdMS_TO_TICKS(1000));
+//     }
+// }
+
+// // Main function to start tasks
+// void app_main() {
+//     // Create the semaphore to signal TaskB to stop
+//     xStopTaskBSemaphore = xSemaphoreCreateBinary();
+//     if (xStopTaskBSemaphore == NULL) {
+//         ESP_LOGE("Main", "Failed to create semaphore");
+//         return;
+//     }
+
+//     // Create the queue to start TaskC and TaskE
+//     xStartTasksQueue = xQueueCreate(1, sizeof(int));
+//     if (xStartTasksQueue == NULL) {
+//         ESP_LOGE("Main", "Failed to create queue");
+//         return;
+//     }
+
+//     // Create TaskA and TaskB
+//     xTaskCreate(TaskA, "TaskA", 4096, NULL, 1, &TaskA_Handle);
+//     xTaskCreate(TaskB, "TaskB", 4096, NULL, 1, &TaskB_Handle);
+
+//     // Wait for TaskA and TaskB to stop
+//     while (eTaskGetState(TaskA_Handle) != eDeleted || eTaskGetState(TaskB_Handle) != eDeleted) {
+//         vTaskDelay(pdMS_TO_TICKS(100));
+//     }
+
+//     // Start TaskC and TaskE
+//     int startSignal = 1;
+//     xQueueSend(xStartTasksQueue, &startSignal, portMAX_DELAY);
+//     xTaskCreate(TaskC, "TaskC", 4096, NULL, 1, &TaskC_Handle);
+//     xTaskCreate(TaskE, "TaskE", 4096, NULL, 1, &TaskE_Handle);
+// }

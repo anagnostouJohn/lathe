@@ -1,352 +1,41 @@
 
 
-// #include <stdio.h>
-// #include <driver/pulse_cnt.h>
-// #include "freertos/FreeRTOS.h"
-// #include "freertos/task.h"
-// #include "driver/gpio.h"
-// #include "esp_log.h"
-// #include "esp_timer.h"
-// #include "esp_task_wdt.h"
-// #include "esp_rom_sys.h"
-// #include "esp_system.h"
-// #include "esp_err.h"
-// #include "sdkconfig.h"
-// #include "freertos/queue.h"
-// #include "esp_sleep.h"
-// #include "esp_task_wdt.h"
-// #include <stdio.h>
-// #include "esp_pm.h"
-// #include <stdio.h>
-// #include "nvs_flash.h"
-// #include "nvs.h"
-
-
-
-// static const char *TAG = "Lathe";
-
-
-// #define EXAMPLE_EC11_GPIO_A 35
-// #define EXAMPLE_EC11_GPIO_B 2
-
-// #define DirPin GPIO_NUM_4
-// #define PulcePin GPIO_NUM_5
-
-
-
-// #define EXAMPLE_PCNT_HIGH_LIMIT 2400//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-// #define EXAMPLE_PCNT_LOW_LIMIT  -2400//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-// #define LeadScrewPitch 200  //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-// #define DesirePitch 100     //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-// #define SpindlePulses  4000 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-// #define StepperSteps   200  //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-
-// // int direction = 0;
-// int PrevValue = 0;
-// int current_value;
-// SemaphoreHandle_t xBinarySemaphoreClock;
-// SemaphoreHandle_t xBinarySemaphoreCounterClock;
-
-// typedef struct {
-//     int *arr;      // pointer to the dynamically allocated array
-//     int length;    // how many elements are in arr
-// } block_data_t;
-
-// void TaskStepperClock(void *pvParameters) {
-//     esp_rom_gpio_pad_select_gpio(DirPin);
-//     gpio_set_direction(DirPin, GPIO_MODE_OUTPUT);
-
-//     esp_rom_gpio_pad_select_gpio(PulcePin);
-//     gpio_set_direction(PulcePin, GPIO_MODE_OUTPUT);
-//     while (1) {
-//         if(xSemaphoreTake(xBinarySemaphoreClock, portMAX_DELAY)==pdTRUE){     
-//             gpio_set_level(DirPin,1);      
-//             gpio_set_level(PulcePin, 1);
-//             vTaskDelay(pdMS_TO_TICKS(1));
-//             gpio_set_level(PulcePin, 0);
-//         }
-//     }
-// }
-
-// void TaskStepperCounterClock(void *pvParameters) {
-//     esp_rom_gpio_pad_select_gpio(DirPin);
-//     gpio_set_direction(DirPin, GPIO_MODE_OUTPUT);
-
-//     esp_rom_gpio_pad_select_gpio(PulcePin);
-//     gpio_set_direction(PulcePin, GPIO_MODE_OUTPUT);
-//     while (1) {
-//         if(xSemaphoreTake(xBinarySemaphoreCounterClock, portMAX_DELAY)==pdTRUE){     
-//             gpio_set_level(DirPin,0);      
-//             gpio_set_level(PulcePin, 1);
-//             vTaskDelay(pdMS_TO_TICKS(1));
-//             gpio_set_level(PulcePin, 0);
-//         }
-//     }
-// }
-
-// void TaskRottary(void *pvParameters)
-// {
-//     esp_task_wdt_add(NULL);
-//         block_data_t *p = (block_data_t *)pvParameters;
-//     int *numbers = p->arr;       // pointer to allocated array
-//     int sizeOfList = p->length;  // length
-
-
-//         ESP_LOGI("RottaryEnc", "sizeOfList = %d", sizeOfList);
-//     for (int k = 0; k < sizeOfList; k++) {
-//         ESP_LOGI("RottaryEnc", "Element %d = %d", k, numbers[k]);
-//     }
-
-//     ESP_LOGI(TAG, "install pcnt unit");
-//     pcnt_unit_handle_t pcnt_unit = NULL;// INFO  I TOOK IT FROM BELO
-//     pcnt_unit_config_t unit_config = {
-//         .high_limit = EXAMPLE_PCNT_HIGH_LIMIT,
-//         .low_limit = EXAMPLE_PCNT_LOW_LIMIT,
-//     };
-   
-//     ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &pcnt_unit));
-
-//     ESP_LOGI(TAG, "install pcnt channels");
-//     pcnt_chan_config_t chan_a_config = {
-//         .edge_gpio_num = EXAMPLE_EC11_GPIO_A,
-//         .level_gpio_num = EXAMPLE_EC11_GPIO_B,
-//     };
-//     pcnt_channel_handle_t pcnt_chan_a = NULL;
-//     ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_a_config, &pcnt_chan_a));
-//     pcnt_chan_config_t chan_b_config = {
-//         .edge_gpio_num = EXAMPLE_EC11_GPIO_B,
-//         .level_gpio_num = EXAMPLE_EC11_GPIO_A,
-//     };
-//     pcnt_channel_handle_t pcnt_chan_b = NULL;
-//     ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_b_config, &pcnt_chan_b));
-
-//     ESP_LOGI(TAG, "set edge and level actions for pcnt channels");
-//     ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_a, PCNT_CHANNEL_EDGE_ACTION_DECREASE, PCNT_CHANNEL_EDGE_ACTION_INCREASE));
-//     ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
-//     ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_b, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_DECREASE));
-//     ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_b, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
-
-
-//     ESP_LOGI(TAG, "enable pcnt unit");
-//     ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
-//     ESP_LOGI(TAG, "clear pcnt unit");
-//     ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
-//     ESP_LOGI(TAG, "start pcnt unit");
-//     ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
-
-// #if CONFIG_EXAMPLE_WAKE_UP_LIGHT_SLEEP
-//     // EC11 channel output high level in normal state, so we set "low level" to wake up the chip
-//     ESP_ERROR_CHECK(gpio_wakeup_enable(EXAMPLE_EC11_GPIO_A, GPIO_INTR_LOW_LEVEL));
-//     ESP_ERROR_CHECK(esp_sleep_enable_gpio_wakeup());
-//     ESP_ERROR_CHECK(esp_light_sleep_start());
-// #endif
-//     int pulse_count = 0;
-//     for (;;) {
-
-//             ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
-//                     if (pulse_count % numbers[0] == 0 && pulse_count>0) {
-//                             xSemaphoreGive(xBinarySemaphoreClock);
-//                             pcnt_unit_clear_count(pcnt_unit);
-//                             int x = numbers[0];
-//                             for(int i=0; i<sizeOfList - 1; i++){
-//                                 numbers[i]=numbers[i+1];
-//                             }
-//                             numbers[sizeOfList-1] = x;
-
-//                         } else if (pulse_count % numbers[0] == 0 && pulse_count < 0){
-//                             xSemaphoreGive(xBinarySemaphoreCounterClock);
-//                             pcnt_unit_clear_count(pcnt_unit);
-//                             int x = numbers[0];
-//                             for(int i=0; i<sizeOfList - 1; i++){
-//                                 numbers[i]=numbers[i+1];
-//                             }
-//                             numbers[sizeOfList-1] = x;
-//                         } else{;;}
-//                          esp_task_wdt_reset();
-//                     }
-// }
-
-
-
-
-// static int gcd(int a, int b)
-// {
-//     if (b == 0) return a;
-//     return gcd(b, a % b);
-// }
-
-
-
-// void app_main() {
-
-
-//     SetNVS();
-//     int x = GetNVS();
-//     printf(" x : %d!\n",x);
-
-//     // vTaskDelay(100000);
-
-//    // Wait for system to stabilize
-//    esp_task_wdt_config_t wd_config = {
-//     .timeout_ms =5000,
-//     .idle_core_mask=0,
-//     .trigger_panic=true,
-//    };
-//      esp_err_t ret = esp_task_wdt_reconfigure(&wd_config); // Apply configuration
-//     if (ret != ESP_OK) {
-//         printf("Task Watchdog Timer reconfiguration failed: %d\n", ret);
-//     }
-
-//     // Check and print the APB clock frequency
-//     xBinarySemaphoreClock = xSemaphoreCreateBinary();
-//     if (xBinarySemaphoreClock == NULL) {
-//         ESP_LOGE("app_main", "Failed to create semaphore");
-//         return; // Abort if semaphore creation fails
-//     }
-//         xBinarySemaphoreCounterClock = xSemaphoreCreateBinary();
-//     if (xBinarySemaphoreCounterClock == NULL) {
-//         ESP_LOGE("app_main", "Failed to create semaphore");
-//         return; // Abort if semaphore creation fails
-//     }
-
-
-
-
-//     // We want to express ratio = pulses / steps in simplest form.
-//     // ratio = 4000 / 175
-
-//     // 1) Compute GCD
-
-
-//     float fRleadScrew = StepperSteps * ((float)DesirePitch / (float)LeadScrewPitch);
-//     int RleadScrew = (int)fRleadScrew;
-   
-//     int divisor = gcd(SpindlePulses, RleadScrew);
-
-//     // 2) Divide both by GCD to get reduced fraction
-//     int numerator   = SpindlePulses / divisor;  // e.g. 4000 / 25 = 160
-//     int denominator = RleadScrew  / divisor;  // e.g. 175 / 25  = 7
-
-//     // 3) Print results
-//     printf("Ratio (pulses/steps) = %d/%d Divisor = %d\n", numerator, denominator, divisor);
-
-//     // The fraction is 160/7, meaning:
-//     // - For every 7 'step blocks', we have 160 'pulse blocks'.
-//     // - Repeated enough times => 175 steps, 4000 pulses.
-
-//     int blockSteps  = denominator; // 7
-//     int blockPulses = numerator;   // 160
-
-//     printf("Block size (steps) = %d, Pulses in that block = %d\n",
-//            blockSteps, blockPulses);
-
-//     // Keep this task alive
-    
-//     int *blockArray = malloc(blockSteps * sizeof(int));
-//     if (!blockArray) {
-//         ESP_LOGE("app_main", "Failed to allocate memory for blockArray");
-//         return; // handle error gracefully
-//     }
-
-//     int FirstEntries = numerator / blockSteps;
-//     ESP_LOGE("app_main", "FirstEnttries: %d", FirstEntries);
-//     for (int i =0; i<blockSteps; i++){
-//         blockArray[i]=FirstEntries;
-//     }
-//     int Remaining = blockPulses - (FirstEntries *blockSteps);
-//     ESP_LOGE("app_main", "Remaining: %d", Remaining);
-//     if (Remaining>0){
-//         int counter = 0;
-//         for (int j=0; j<Remaining; j++){
-//             blockArray[counter]++;
-//             counter++;
-//             if (counter>blockSteps){
-//                 counter =0;
-//             }
-//         }
-//     }
-
-//     for(int k=0; k<blockSteps; k++){
-//         ESP_LOGE("app_main", "Element: %d, Size: %d",k,blockArray[k]);
-//     }
-//     // vTaskDelay(1000000);
-
-//     block_data_t *params = malloc(sizeof(block_data_t));
-//     if (!params) {
-//         ESP_LOGE("app_main", "Failed to allocate memory for params");
-//         free(blockArray);
-//         return; // handle error
-//     }
-
-//     params->arr    = blockArray;   // store the pointer
-//     params->length = blockSteps;   // store the length
-
-//     // Create the task and pin it to core 1
-//     xTaskCreatePinnedToCore(
-//         TaskStepperClock,            // Function that implements the task
-//         "TaskStepperClock",      // Name of the task
-//         4096,             // Stack size
-//         NULL,             // Task input parameter
-//         1,                // Priority of the task
-//         NULL,             // Task handle
-//         tskNO_AFFINITY
-//         // 1                 // Core where the task should run (1 for core 1, 0 for core 0)
-
-//     );
-
-
-//     xTaskCreatePinnedToCore(
-//         TaskStepperCounterClock,            // Function that implements the task
-//         "TaskStepperCounterClock",      // Name of the task
-//         4096,             // Stack size
-//         NULL,             // Task input parameter
-//         1,                // Priority of the task
-//         NULL,             // Task handle
-//         tskNO_AFFINITY
-//         // 1                 // Core where the task should run (1 for core 1, 0 for core 0)
-
-//     );
-
-
-//     xTaskCreatePinnedToCore(  
-//         TaskRottary,
-//         "RotaryEncoder",
-//         4096,
-//         (void *)params,
-//         1,
-//         NULL,
-//         tskNO_AFFINITY
-//         // 0
-//     );
-// }
-
-
-
-////////////////////////////////////////////////////////////////
-
 #include <stdio.h>
-#include <string.h>
+#include <driver/pulse_cnt.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "driver/i2c.h"
-#include "esp_log.h"
-#include "sdkconfig.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/queue.h"
-#include "esp_log.h"
-#include "driver/pulse_cnt.h"
 #include "driver/gpio.h"
+#include "esp_log.h"
+#include "esp_timer.h"
+#include "esp_task_wdt.h"
+#include "esp_rom_sys.h"
+#include "esp_system.h"
+#include "esp_err.h"
+#include "sdkconfig.h"
+#include "freertos/queue.h"
 #include "esp_sleep.h"
+#include "esp_task_wdt.h"
+#include <stdio.h>
+#include "esp_pm.h"
+#include <stdio.h>
 #include "nvs_flash.h"
 #include "nvs.h"
 
 
+#include <string.h>
+#include "driver/i2c.h"
+#include "freertos/queue.h"
+
+
+
+
+
+
 SemaphoreHandle_t xStopTaskBSemaphore = NULL;
 QueueHandle_t xStartTasksQueue = NULL;
+SemaphoreHandle_t xBinarySemaphoreClock;
+SemaphoreHandle_t xBinarySemaphoreCounterClock;
+
 TaskHandle_t TaskA_Handle = NULL;
 TaskHandle_t TaskB_Handle = NULL;
 
@@ -358,14 +47,22 @@ void InitializeValues();
 #define STORAGE "Data"
 
 
+static const char *TAGLCD = "I2C_LCD";
+static const char *TAGLATHE = "Lathe";
+
 #define SELECTOR_GPIO_A 36
 #define SELECTOR_GPIO_B 37
 #define SELECTOR_GPIO_BUTTON 40
+#define EXAMPLE_EC11_GPIO_A 35
+#define EXAMPLE_EC11_GPIO_B 2
+#define DirPin GPIO_NUM_4
+#define PulcePin GPIO_NUM_5
+
 
 #define EXAMPLE_PCNT_HIGH_LIMIT 80
 #define EXAMPLE_PCNT_LOW_LIMIT  -80
 
-static const char *TAG = "I2C_LCD";
+
 
 /* I2C configuration */
 #define I2C_MASTER_SCL_IO          6   // GPIO for SCL signal
@@ -434,15 +131,13 @@ static const char *TAG = "I2C_LCD";
 
 float powerFeedValue=0.10;
 float metricThreadsValue =0.75;
-float tpiThreadsValue =0.0;
-int rottaryEncoderValues;
-int leadScrewValue;
-int stepperMotorValue;
+int tpiThreadsValue =0;
+int rottaryEncoderValues=0;
+int leadScrewValue=0;
+int stepperMotorValue=0;
 
 
-int FinalpowerFeedValue=0;
 int FinalmetricThreadsValue =0;
-// int FinaltpiThreadsValue =0;
 int FinalrottaryEncoderValues;
 int FinalleadScrewValue;
 int FinalstepperMotorValue;
@@ -465,494 +160,19 @@ int maxRottarySelection = 3;
 const char *Main_Menu[MAIN_MENU_ITEMS]  = {"Main Menu","Power Feed", "Threads", "Settings"};
 const char *Threads_Menu[THREADS_MENU_ITEMS]  = {"Threads Menu","Metric", "TPI", "Return"};
 const char *Settings_Menu[SETTINGS_MENU_ITEMS]  = {"Settings Menu","Set Rot. Encoder", "Set Lead Screw", "Set Stepper Motor", "Return"};
-const char *OK_RETURN[4]={"","  Value : ","OK","Return"};
-const char *RETURN[3]={"","  Value : ","Return"};
+const char *OK_RETURN[4]={""," Value : ","OK","Return"};
+const char *RETURN[3]={""," Value : ","Return"};
 const char *TYPE[1]={""};
 static uint8_t pcf8574_mask = PCF8574_BL; // Start with backlight ON
 
 pcnt_unit_handle_t pcnt_unit = NULL;
 
-
-void InitializeValues() {
-    rottaryEncoderValues = GetNVS("rottary"); // Initialize inside a function
-    leadScrewValue = GetNVS("lead");
-    stepperMotorValue = GetNVS("stepper");
-}
-
-void SetNVS(const char* key, int32_t value){
-    esp_err_t err = nvs_flash_init();
-    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        err = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(err);
+typedef struct {
+    int *arr;      // pointer to the dynamically allocated array
+    int length;    // how many elements are in arr
+} block_data_t;
 
 
-    nvs_handle_t my_handle;
-    err = nvs_open(STORAGE, NVS_READWRITE, &my_handle);
-    if (err != ESP_OK) {
-        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
-    } else {
-        printf("NVS handle opened successfully.\n");
-    }
-
-
-    err = nvs_set_i32(my_handle, key, value);// my_counter is the variable counter is the number
-    if (err == ESP_OK) {
-        // Commit written value.
-        err = nvs_commit(my_handle);
-        if (err != ESP_OK) {
-            printf("Error committing to NVS!\n");
-        }
-    } else {
-        printf("Error setting value in NVS!\n");
-    }
-
-}
-
-
-int GetNVS(const char* key){
-    esp_err_t err = nvs_flash_init();
-    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        err = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(err);
-
-
-    nvs_handle_t my_handle;
-    err = nvs_open(STORAGE, NVS_READWRITE, &my_handle);
-    if (err != ESP_OK) {
-        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
-    } else {
-        printf("NVS handle opened successfully.\n");
-    }
-
-
-    int32_t stored_value = 0;
-    err = nvs_get_i32(my_handle, key, &stored_value);
-    switch (err) {
-        case ESP_OK:
-            printf("The stored counter value is: %ld\n", stored_value);
-            break;
-        case ESP_ERR_NVS_NOT_FOUND:
-            printf("The value is not initialized yet!\n");
-            SetNVS(key, 0);
-            break;
-        default :
-            printf("Error (%s) reading!\n", esp_err_to_name(err));
-    }
-
-    nvs_close(my_handle);
-    return stored_value;
-
-}
-
-void ButtonPressed(void *pvParameters)
-{
-    // Configure the GPIO pin as input with pull-up
-    gpio_config_t io_conf;
-    io_conf.intr_type = GPIO_INTR_DISABLE; // Disable interrupt
-    io_conf.mode = GPIO_MODE_INPUT;       // Set as input mode
-    io_conf.pin_bit_mask = (1ULL << SELECTOR_GPIO_BUTTON); // Bit mask for the GPIO pin
-    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE; // Disable pull-down
-    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;     // Enable pull-up
-    gpio_config(&io_conf);
- bool button_pressed = false; // Flag to track button press state
-    while (1) {
-        // Read the button state
-        int button_state = gpio_get_level(SELECTOR_GPIO_BUTTON );
-
-        if (button_state == 0) {
-            if (!button_pressed) { // Check if the button was not already pressed
-                printf("Button pressed!\n");
-                button_pressed = true; // Set the flag to indicate the button is pressed
-            }
-        } else {
-            if (button_pressed) {
-                
-                Selection=1;
-                 // Check if the button was previously pressed
-                if (path[0] ==0){
-                    if (path[1]==1){
-                        // ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
-                        path[0]=1;
-                        path[1]=1;
-                        PathMenu=2;
-                        CreateMenu();
-                    } else if (path[1]==2){
-                        // ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
-                        path[0]=2;
-                        path[1]=1;
-                        PathMenu=3;
-                        CreateMenu();
-                    } else if (path[1]==3){
-                        path[0]=3;
-                        path[1]=1;
-                        PathMenu=4;
-                        maxRottarySelection=4;
-                        CreateMenu();
-                    }
-////////////////////////////////////////////////////////////////////
-                } else if(path[0] ==1){//INFO POWER FEED
-                    if (path[2]==1){
-                        setPowerFeed= !setPowerFeed;//uhygvuvk
-                        setSelection = !setSelection;
-                        CreateMenu();
-                    } else if (path[2]==2){
-                        xSemaphoreGive(xStopTaskBSemaphore);
-                        vTaskDelete(NULL);
-                    } else if (path[2]==3){ // INFO RETURN TO MAIN MENU
-                        path[0]=0;
-                        path[2]=1; 
-                        PathMenu=1;
-                        maxRottarySelection = 3;
-                        CreateMenu();
-                    }
-////////////////////////////////////////////////////////////////////
-                } else if(path[0] ==2){//INFO THREADS MENY
-                    if (path[3]==1){
-                        path[0]=4;
-                        path[3]=1;
-                        PathMenu=5;
-                        CreateMenu();
-                    } else if (path[3]==2){
-                        path[0]=5;
-                        path[3]=1;
-                        PathMenu=6;
-                        CreateMenu();
-                    } else if (path[3]==3){//INFO RETURN TO MAIN MENU
-                        path[0]=0;
-                        path[3]=1; 
-                        PathMenu=1;
-                        CreateMenu();
-                    }
-////////////////////////////////////////////////////////////////////APO EDO KAI KATO 
-                } else if(path[0] ==3){//INFO Settings Menu 
-                    if (path[4]==1){//BUG 
-                        path[0]=6;
-                        path[4]=1;
-                        PathMenu=7;
-                        maxRottarySelection = 2;
-                        CreateMenu();
-                    } else if (path[4]==2){
-                        path[0]=7;
-                        path[4]=1;
-                        PathMenu=8;
-                        maxRottarySelection = 2;
-                        CreateMenu();
-                    } else if (path[4]==3){//INFO RETURN TO MAIN MENU
-                        path[0]=8;
-                        path[4]=1; 
-                        PathMenu=9;
-                        maxRottarySelection = 2;
-                        CreateMenu();
-                    } else if (path[4]==4){//INFO RETURN TO MAIN MENU
-                        path[0]=0;
-                        path[4]=1; 
-                        PathMenu=1;
-                        maxRottarySelection = 3;
-                        CreateMenu();
-                    }
-
-////////////////////////////////////////////////////////////////////
-                } else if(path[0] ==4){//INFO METRIC THREADS
-                    if (path[5]==1){
-                        setSelection = !setSelection;
-                        setMetricThreads = !setMetricThreads;
-                        CreateMenu();
-                    } else if (path[5]==2){
-                        xSemaphoreGive(xStopTaskBSemaphore);
-                        vTaskDelete(NULL);
-                    } else if (path[5]==3){//INFO RETURN TO MAIN MENU
-                        path[0]=2;
-                        path[5]=1; 
-                        PathMenu=3;
-                        CreateMenu();
-                    }
-////////////////////////////////////////////////////////////////////
-                } else if(path[0] ==5){//INFO TPI MENY
-                    if (path[6]==1){
-                        setSelection = !setSelection;
-                        setTPIthreads = !setTPIthreads;
-                        CreateMenu();
-                    } else if (path[6]==2){
-                        xSemaphoreGive(xStopTaskBSemaphore);
-                        vTaskDelete(NULL);
-                    } else if (path[6]==3){//INFO RETURN TO MAIN MENU
-                        path[0]=2;
-                        path[6]=1; 
-                        PathMenu=3;
-                        CreateMenu();
-                    }
-////////////////////////////////////////////////////////////////////
-                } else if(path[0] ==6){//INFO SET ROTTARY
-                    if (path[7]==1){
-                        setSelection = !setSelection;
-                        
-                        if (setRottaryEncoder==false){
-                            setRottaryEncoder = true;
-                            CreateMenu();
-                        } else{
-                            setRottaryEncoder = !setRottaryEncoder;
-                            SetNVS("rottary", rottaryEncoderValues);
-                            CreateMenu();
-                        }
-                    } else if (path[7]==2){//INFO RETURN TO SETTINGS MENU
-                        path[0]=3;
-                        path[7]=1; 
-                        PathMenu=4;
-                        maxRottarySelection = 4;
-                        CreateMenu();
-                    }
-////////////////////////////////////////////////////////////////////
-                } else if(path[0] ==7){//INFO SET LEAD SCREW
-                    if (path[8]==1){
-                        setSelection = !setSelection;
-                        
-                        if (setleadScrew==false){
-                            setleadScrew = true;
-                            CreateMenu();
-                        } else{
-                            setleadScrew = !setleadScrew;
-                            SetNVS("rottary", leadScrewValue);
-                            CreateMenu();
-                        }
-                    } else if (path[8]==2){//INFO RETURN TO SETTINGS MENU
-                        path[0]=3;
-                        path[8]=1; 
-                        PathMenu=4;
-                        maxRottarySelection = 4;
-                        CreateMenu();
-                    }
-////////////////////////////////////////////////////////////////////
-                } else if(path[0] ==8){//INFO SET STEPPER MOTOR
-                    if (path[9]==1){
-                        setSelection = !setSelection;
-                        
-                        if (setStepperMotor==false){
-                            setStepperMotor = true;
-                            CreateMenu();
-                        } else{
-                            setStepperMotor = !setStepperMotor;
-                            SetNVS("rottary", stepperMotorValue);
-                            CreateMenu();
-                        }
-                    } else if (path[9]==2){//INFO RETURN TO SETTINGS MENU
-                        path[0]=3;
-                        path[3]=1; 
-                        PathMenu=4;
-                        maxRottarySelection = 4;
-                        CreateMenu();
-                    }
-////////////////////////////////////////////////////////////////////
-                    }
-                }
-                button_pressed = false; // Reset the flag
-            }
-        
-        // Add a delay to avoid bouncing and flooding the console
-        vTaskDelay(pdMS_TO_TICKS(200));
-  } 
-}
-
-
-void SelectorCounter(void *pvParameters)
-{
-    ESP_LOGI(TAG, "install pcnt unit");
-    pcnt_unit_config_t unit_config = {
-        .high_limit = EXAMPLE_PCNT_HIGH_LIMIT,
-        .low_limit = EXAMPLE_PCNT_LOW_LIMIT,
-    };
-    
-    ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &pcnt_unit));
-
-
-    ESP_LOGI(TAG, "install pcnt channels");
-    pcnt_chan_config_t chan_a_config = {
-        .edge_gpio_num = SELECTOR_GPIO_A,
-        .level_gpio_num = SELECTOR_GPIO_B,
-    };
-    pcnt_channel_handle_t pcnt_chan_a = NULL;
-    ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_a_config, &pcnt_chan_a));
-    pcnt_chan_config_t chan_b_config = {
-        .edge_gpio_num = SELECTOR_GPIO_B,
-        .level_gpio_num = SELECTOR_GPIO_A,
-    };
-    pcnt_channel_handle_t pcnt_chan_b = NULL;
-    ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_b_config, &pcnt_chan_b));
-
-    ESP_LOGI(TAG, "set edge and level actions for pcnt channels");
-
-
-
-    ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_a, PCNT_CHANNEL_EDGE_ACTION_DECREASE, PCNT_CHANNEL_EDGE_ACTION_INCREASE));
-    ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
-    ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_b, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_DECREASE));
-    ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_b, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
-
-    ESP_LOGI(TAG, "add watch points and register callbacks");
-
-    // QueueHandle_t queue = xQueueCreate(10, sizeof(int));
-
-    ESP_LOGI(TAG, "enable pcnt unit");
-    ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
-    ESP_LOGI(TAG, "clear pcnt unit");
-    ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
-    ESP_LOGI(TAG, "start pcnt unit");
-    ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
-
-#if CONFIG_EXAMPLE_WAKE_UP_LIGHT_SLEEP
-    // EC11 channel output high level in normal state, so we set "low level" to wake up the chip
-    ESP_ERROR_CHECK(gpio_wakeup_enable(EXAMPLE_EC11_GPIO_A, GPIO_INTR_LOW_LEVEL));
-    ESP_ERROR_CHECK(esp_sleep_enable_gpio_wakeup());
-    ESP_ERROR_CHECK(esp_light_sleep_start());
-#endif
-
-    // Report counter value
-    int pulse_count = 0;
-    int prev_count = 0;
-    while (1) {
-        ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
-
-        if (prev_count != pulse_count){
-            printf("Pulse Count PRO 4: %d PREV Count PRO : %d 4\n", pulse_count, prev_count);
-            if (pulse_count %4 ==0) {
-            printf("Pulse Count: %d\n", pulse_count);
-            
-            // Determine the direction of rotation
-            if (prev_count < pulse_count) {
-                // Clockwise rotation
-                if (setSelection == true){
-                    Selection++;
-                        if (Selection > maxRottarySelection) {
-                            Selection = 1;
-                    }
-                } else if (setPowerFeed == true){
-                        if (powerFeedValue<0.40){
-                            powerFeedValue+=0.10;
-                            if (powerFeedValue > 0.40) { // Ensure it doesn't go below zero
-                                powerFeedValue = 0.40;
-                            }
-                            FinalpowerFeedValue = (int)(powerFeedValue*100+0.1);
-                        }
-                }else if (setMetricThreads == true){
-                        if (metricThreadsValue<3.00){
-                            metricThreadsValue+=0.05;
-                            if (metricThreadsValue>3.00){
-                                metricThreadsValue=3.00;
-                            }
-                            FinalmetricThreadsValue = (int)(metricThreadsValue*100+0.5);
-                        }
-                }else if (setTPIthreads == true){
-                        if (tpiThreadsValue<30){
-                            tpiThreadsValue++;
-                            if(tpiThreadsValue>30){
-                                tpiThreadsValue=30;
-                            }
-                            FinalmetricThreadsValue = (int)((25.4/tpiThreadsValue)*100+0.5);
-
-                        }
-                }else if (setRottaryEncoder == true){
-                        if (rottaryEncoderValues<10000){
-                            rottaryEncoderValues+=100;
-                            if (rottaryEncoderValues>10000){
-                                rottaryEncoderValues=10000;
-                            }
-                        }
-
-                }else if (setleadScrew == true){
-                        if (leadScrewValue<300){
-                            leadScrewValue+=10;
-                            if (leadScrewValue>300){
-                                leadScrewValue =300;
-                            }
-                        } 
-                }else if (setStepperMotor == true){
-                        if (stepperMotorValue<200){
-                            stepperMotorValue+=10;
-                            if (stepperMotorValue>200){
-                                stepperMotorValue = 200;
-                            }
-                        }
-                }
-
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            } else {
-                if (setSelection== true){
-                // Counter-clockwise rotation
-                    Selection--;
-                    if (Selection < 1) {
-                        Selection = maxRottarySelection;
-                    }
-                } else if (setPowerFeed == true){
-                        if (powerFeedValue>0.0){
-                            powerFeedValue -= 0.10;
-                            if (powerFeedValue<0.1){
-                                powerFeedValue = 0.1;
-                            }
-                        }
-                        FinalpowerFeedValue = (int)(powerFeedValue*100+0.1);
-                } else if (setMetricThreads == true){
-                        if (metricThreadsValue>0){
-                            metricThreadsValue-=0.05;
-                            if (metricThreadsValue < 0.75){
-                                metricThreadsValue=0.75;
-                            }
-                        }
-                        FinalmetricThreadsValue = (int)(metricThreadsValue*100+0.5);
-                } else if (setTPIthreads == true){
-                        if (tpiThreadsValue>0){
-                            tpiThreadsValue--;
-                            if (tpiThreadsValue==0){
-                                tpiThreadsValue=1;
-                            }
-                        }
-                        FinalmetricThreadsValue = (int)((25.4/tpiThreadsValue)*100+0.5);
-                } else if (setRottaryEncoder == true){
-                        if (rottaryEncoderValues>0){
-                            rottaryEncoderValues-=100;
-                            if (rottaryEncoderValues<2000){
-                                rottaryEncoderValues=2000;
-                            }
-                        }
-                }else if (setleadScrew == true){
-                        if (leadScrewValue>0){
-                            leadScrewValue-=10;
-                            if (leadScrewValue<0){
-                                leadScrewValue-=0;
-                            }
-                        }
-                }else if (setStepperMotor == true){
-                        if (stepperMotorValue>0){
-                            stepperMotorValue-=10;
-                            if (stepperMotorValue<0){
-                                stepperMotorValue = 0;
-                            }
-                        }
-                }
-            }
-            printf("PathMenu %d Selection: %d Pulse Count: %d PrevCount: %d Metric: %d, Metric Dec %.2f, Power %.2f, F.Power %d \n", PathMenu, Selection, pulse_count, prev_count, FinalmetricThreadsValue, metricThreadsValue, powerFeedValue,FinalpowerFeedValue);
-            path[PathMenu] = Selection;
-
-            CreateMenu();
-            prev_count = pulse_count;
-
-
-            }
-        }
-        vTaskDelay(pdMS_TO_TICKS(30));
-        
-
-        if (xSemaphoreTake(xStopTaskBSemaphore, 0) == pdTRUE) {
-            ESP_LOGI("TaskB", "TaskB received stop signal");
-            vTaskDelete(NULL); // Delete TaskB
-        }
-
-    }
-}
 
 
 /**
@@ -1068,7 +288,7 @@ static void lcd_init(void)
     lcd_cmd(LCD_CMD_ENTRY_MODE_SET | 0x02);
     vTaskDelay(pdMS_TO_TICKS(5));
 
-    ESP_LOGI(TAG, "LCD initialized in 4-bit mode.");
+    ESP_LOGI(TAGLCD, "LCD initialized in 4-bit mode.");
 }
 
 /**
@@ -1120,7 +340,7 @@ static void i2c_master_init(void)
                        I2C_MASTER_TX_BUF_DISABLE,
                        0);
 
-    ESP_LOGI(TAG, "I2C master initialized on SDA=%d, SCL=%d at %d Hz",
+    ESP_LOGI(TAGLCD, "I2C master initialized on SDA=%d, SCL=%d at %d Hz",
              I2C_MASTER_SDA_IO, I2C_MASTER_SCL_IO, I2C_MASTER_FREQ_HZ);
 }
 
@@ -1211,44 +431,51 @@ static void PrintSettingsMenu(int pos, int menu){
 
 }
 
+static void PrintRun(){
+    lcd_cmd(LCD_CMD_CLEAR_DISPLAY);
+    lcd_set_cursor(0, 0); // Move cursor to row i
+    lcd_print(">>>>>>>> RUN <<<<<<<"); // Highlight the selected item
+}
+
 static void PrintValuesMenu(int pos, int menu ){
     lcd_cmd(LCD_CMD_CLEAR_DISPLAY);
     int items =0;
-    float value = 0.0;
+    float fvalue = 0.0;
+    int ivalue=0;
     char valueStr[16];
 
     if (menu == 1){
         OK_RETURN[0] = "Power Feed Menu";
-        value = powerFeedValue;
+        fvalue = powerFeedValue;
         items = POWER_FEED_MENU_ITEMS;
-        TYPE[0] = "mm";
+        TYPE[0] = "cm";
     } else if (menu == 4){
          OK_RETURN[0] = "Metric Threads";
-         value = metricThreadsValue;
+         fvalue = metricThreadsValue;
          items = METRIC_MENU_ITEMS;
-        TYPE[0] = "mm";
+        TYPE[0] = "cm";
     } else if (menu == 5){
          OK_RETURN[0] = "TPI";
-         value=tpiThreadsValue;
+         ivalue=tpiThreadsValue;
          items=TPI_MENU_ITEMS;
          TYPE[0] = "Inch";
     }else if (menu == 6){
          RETURN[0] = "Rotary Encoder";
          items=SET_ROTARY_ENCODER_MENU_ITEMS;
-         value= rottaryEncoderValues;
+         ivalue= rottaryEncoderValues;
         TYPE[0] = "PRM";
     }else if (menu == 7){
          RETURN[0] = "Lead Screw";
-         value= leadScrewValue;
+         ivalue= leadScrewValue;
          items=SET_LEAD_SCREW_MENU_ITEMS;
-         TYPE[0] = "Pitch";
+         TYPE[0] = "Ptc";
     }else if (menu == 8){
          RETURN[0] = "Stepper Motor";
-         value= stepperMotorValue;
+        ivalue= stepperMotorValue;
          items=SET_STEPPER_MOTOR_MENU_ITEMS;
          TYPE[0] = "SPR";
     }
-    float y = (int)(value * 100) / 100.0; 
+    
     printf("MENU[0] = %s, MENU[1] = %s, MENU[2] = %s\n",OK_RETURN[0],OK_RETURN[1],OK_RETURN[2] );
     for (int i = 0; i < items; i++) {
         lcd_set_cursor(0, i); // Move cursor to row i
@@ -1261,7 +488,7 @@ static void PrintValuesMenu(int pos, int menu ){
 
         if ((menu == 6) || (menu == 7) || (menu == 8)){ // ONLY RETURN GLOBAL VARIABLES >>>LEAD >>>>STEPPER >>>>>ROTTARY
             if (i==1){
-                sprintf(valueStr, "%.2f", y); // Convert integer to string
+                sprintf(valueStr, "%d", ivalue); // Convert integer to string
                 lcd_print(RETURN[i]);
                 lcd_print(valueStr);
                 lcd_print(" ");
@@ -1273,8 +500,15 @@ static void PrintValuesMenu(int pos, int menu ){
                 lcd_print(RETURN[i]);
             } 
         } else{
+            // FinalmetricThreadsValue = (int)(metricThreadsValue*100+0.5);
+            float y = (int)(fvalue * 100+0.05) / 100.0; 
             if (i==1){
-                sprintf(valueStr, "%.2f", y); // RUN AND RETURN >>>>METRIC >>>>TPI >>>>POWERFEED
+                if (menu==5){
+                    sprintf(valueStr, "%d", ivalue); // >>>>TPI
+                }else{
+                    sprintf(valueStr, "%.2f", y); // RUN AND RETURN >>>>METRIC  >>>>POWERFEED
+                }
+                
                 lcd_print(OK_RETURN[i]);
                 lcd_print(valueStr);
                 lcd_print(" ");
@@ -1325,20 +559,639 @@ printf("path[0] = %d, path[1] = %d, path[2] = %d, path[3] = %d, path[4] = %d, pa
         break;
 /////////////////////////////////////////////////////////////////////////
     case 7://PRINT SET LEAD SCREW PITCH
-    PrintValuesMenu(path[8],path[0]);
+        PrintValuesMenu(path[8],path[0]);
         break;
 /////////////////////////////////////////////////////////////////////////
     case 8://PRINT SET STEPPER MOTOR
         PrintValuesMenu(path[9],path[0]);
+        break;
+    case 9://PRINT SET STEPPER MOTOR
+        PrintRun();
         break;
     default:
         break;
     }
 }
 
-void app_main(void)
+
+void InitializeValues() {
+    rottaryEncoderValues = GetNVS("rottary"); // INFO ROTTARY ENCODER STEPS * 4
+    leadScrewValue = GetNVS("lead"); //INFO LEAD SCREW MILIMITERS
+    stepperMotorValue = GetNVS("stepper"); //INFO STEPPER MOTOR STEPS
+}
+
+void SetNVS(const char* key, int32_t value){
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
+
+
+    nvs_handle_t my_handle;
+    err = nvs_open(STORAGE, NVS_READWRITE, &my_handle);
+    if (err != ESP_OK) {
+        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+    } else {
+        printf("NVS handle opened successfully.\n");
+    }
+
+
+    err = nvs_set_i32(my_handle, key, value);// my_counter is the variable counter is the number
+    if (err == ESP_OK) {
+        // Commit written value.
+        err = nvs_commit(my_handle);
+        if (err != ESP_OK) {
+            printf("Error committing to NVS!\n");
+        }
+    } else {
+        printf("Error setting value in NVS!\n");
+    }
+
+}
+
+
+int GetNVS(const char* key){
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
+
+
+    nvs_handle_t my_handle;
+    err = nvs_open(STORAGE, NVS_READWRITE, &my_handle);
+    if (err != ESP_OK) {
+        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+    } else {
+        printf("NVS handle opened successfully.\n");
+    }
+
+
+    int32_t stored_value = 0;
+    err = nvs_get_i32(my_handle, key, &stored_value);
+    switch (err) {
+        case ESP_OK:
+            printf("The stored counter value is: %ld\n", stored_value);
+            break;
+        case ESP_ERR_NVS_NOT_FOUND:
+            printf("The value is not initialized yet!\n");
+            SetNVS(key, 0);
+            break;
+        default :
+            printf("Error (%s) reading!\n", esp_err_to_name(err));
+    }
+
+    nvs_close(my_handle);
+    return stored_value;
+
+}
+
+
+void ButtonPressed(void *pvParameters)
 {
-        xStopTaskBSemaphore = xSemaphoreCreateBinary();
+    // Configure the GPIO pin as input with pull-up
+    gpio_config_t io_conf;
+    io_conf.intr_type = GPIO_INTR_DISABLE; // Disable interrupt
+    io_conf.mode = GPIO_MODE_INPUT;       // Set as input mode
+    io_conf.pin_bit_mask = (1ULL << SELECTOR_GPIO_BUTTON); // Bit mask for the GPIO pin
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE; // Disable pull-down
+    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;     // Enable pull-up
+    gpio_config(&io_conf);
+ bool button_pressed = false; // Flag to track button press state
+    while (1) {
+        // Read the button state
+        int button_state = gpio_get_level(SELECTOR_GPIO_BUTTON );
+
+        if (button_state == 0) {
+            if (!button_pressed) { // Check if the button was not already pressed
+                printf("Button pressed!\n");
+                button_pressed = true; // Set the flag to indicate the button is pressed
+            }
+        } else {
+            if (button_pressed) {
+                
+                Selection=1;
+                 // Check if the button was previously pressed
+                if (path[0] ==0){
+                    if (path[1]==1){
+                        // ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
+                        path[0]=1;
+                        path[1]=1;
+                        PathMenu=2;
+                        CreateMenu();
+                    } else if (path[1]==2){
+                        // ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
+                        path[0]=2;
+                        path[1]=1;
+                        PathMenu=3;
+                        CreateMenu();
+                    } else if (path[1]==3){
+                        path[0]=3;
+                        path[1]=1;
+                        PathMenu=4;
+                        maxRottarySelection=4;
+                        CreateMenu();
+                    }
+////////////////////////////////////////////////////////////////////
+                } else if(path[0] ==1){//INFO POWER FEED
+                    if (path[2]==1){
+                        setPowerFeed= !setPowerFeed;//uhygvuvk
+                        setSelection = !setSelection;
+                        CreateMenu();
+                    } else if (path[2]==2){
+                        path[0]=9;
+                        CreateMenu();
+                        xSemaphoreGive(xStopTaskBSemaphore);
+                        vTaskDelete(NULL);
+                    } else if (path[2]==3){ // INFO RETURN TO MAIN MENU
+                        path[0]=0;
+                        path[2]=1; 
+                        PathMenu=1;
+                        maxRottarySelection = 3;
+                        CreateMenu();
+                    }
+////////////////////////////////////////////////////////////////////
+                } else if(path[0] ==2){//INFO THREADS MENY
+                    if (path[3]==1){
+                        path[0]=4;
+                        path[3]=1;
+                        PathMenu=5;
+                        CreateMenu();
+                    } else if (path[3]==2){
+                        path[0]=5;
+                        path[3]=1;
+                        PathMenu=6;
+                        CreateMenu();
+                    } else if (path[3]==3){//INFO RETURN TO MAIN MENU
+                        path[0]=0;
+                        path[3]=1; 
+                        PathMenu=1;
+                        CreateMenu();
+                    }
+////////////////////////////////////////////////////////////////////APO EDO KAI KATO 
+                } else if(path[0] ==3){//INFO Settings Menu 
+                    if (path[4]==1){//BUG 
+                        path[0]=6;
+                        path[4]=1;
+                        PathMenu=7;
+                        maxRottarySelection = 2;
+                        CreateMenu();
+                    } else if (path[4]==2){
+                        path[0]=7;
+                        path[4]=1;
+                        PathMenu=8;
+                        maxRottarySelection = 2;
+                        CreateMenu();
+                    } else if (path[4]==3){//INFO RETURN TO MAIN MENU
+                        path[0]=8;
+                        path[4]=1; 
+                        PathMenu=9;
+                        maxRottarySelection = 2;
+                        CreateMenu();
+                    } else if (path[4]==4){//INFO RETURN TO MAIN MENU
+                        path[0]=0;
+                        path[4]=1; 
+                        PathMenu=1;
+                        maxRottarySelection = 3;
+                        CreateMenu();
+                    }
+
+////////////////////////////////////////////////////////////////////
+                } else if(path[0] ==4){//INFO METRIC THREADS
+                    if (path[5]==1){
+                        setSelection = !setSelection;
+                        setMetricThreads = !setMetricThreads;
+                        CreateMenu();
+                    } else if (path[5]==2){
+                        path[0]=9;
+                        CreateMenu();
+                        xSemaphoreGive(xStopTaskBSemaphore);
+                        vTaskDelete(NULL);
+                    } else if (path[5]==3){//INFO RETURN TO MAIN MENU
+                        path[0]=2;
+                        path[5]=1; 
+                        PathMenu=3;
+                        CreateMenu();
+                    }
+////////////////////////////////////////////////////////////////////
+                } else if(path[0] ==5){//INFO TPI MENY
+                    if (path[6]==1){
+                        setSelection = !setSelection;
+                        setTPIthreads = !setTPIthreads;
+                        CreateMenu();
+                    } else if (path[6]==2){
+                        path[0]=9;
+                        CreateMenu();
+                        xSemaphoreGive(xStopTaskBSemaphore);
+                        vTaskDelete(NULL);
+                    } else if (path[6]==3){//INFO RETURN TO MAIN MENU
+                        path[0]=2;
+                        path[6]=1; 
+                        PathMenu=3;
+                        CreateMenu();
+                    }
+////////////////////////////////////////////////////////////////////
+                } else if(path[0] ==6){//INFO SET ROTTARY
+                    if (path[7]==1){
+                        setSelection = !setSelection;
+                        
+                        if (setRottaryEncoder==false){
+                            setRottaryEncoder = true;
+                            CreateMenu();
+                        } else{
+                            setRottaryEncoder = !setRottaryEncoder;
+                            SetNVS("rottary", rottaryEncoderValues);
+                            CreateMenu();
+                        }
+                    } else if (path[7]==2){//INFO RETURN TO SETTINGS MENU
+                        path[0]=3;
+                        path[7]=1; 
+                        PathMenu=4;
+                        maxRottarySelection = 4;
+                        CreateMenu();
+                    }
+////////////////////////////////////////////////////////////////////
+                } else if(path[0] ==7){//INFO SET LEAD SCREW
+                    if (path[8]==1){
+                        setSelection = !setSelection;
+                        
+                        if (setleadScrew==false){
+                            setleadScrew = true;
+                            CreateMenu();
+                        } else{
+                            setleadScrew = !setleadScrew;
+                            SetNVS("lead", leadScrewValue);
+                            CreateMenu();
+                        }
+                    } else if (path[8]==2){//INFO RETURN TO SETTINGS MENU
+                        path[0]=3;
+                        path[8]=1; 
+                        PathMenu=4;
+                        maxRottarySelection = 4;
+                        CreateMenu();
+                    }
+////////////////////////////////////////////////////////////////////
+                } else if(path[0] ==8){//INFO SET STEPPER MOTOR
+                    if (path[9]==1){
+                        setSelection = !setSelection;
+                        
+                        if (setStepperMotor==false){
+                            setStepperMotor = true;
+                            CreateMenu();
+                        } else{
+                            setStepperMotor = !setStepperMotor;
+                            SetNVS("stepper", stepperMotorValue);
+                            CreateMenu();
+                        }
+                    } else if (path[9]==2){//INFO RETURN TO SETTINGS MENU
+                        path[0]=3;
+                        path[3]=1; 
+                        PathMenu=4;
+                        maxRottarySelection = 4;
+                        CreateMenu();
+                    }
+////////////////////////////////////////////////////////////////////
+                    }
+                }
+                button_pressed = false; // Reset the flag
+            }
+        
+        // Add a delay to avoid bouncing and flooding the console
+        vTaskDelay(pdMS_TO_TICKS(200));
+  } 
+}
+
+
+
+
+void SelectorCounter(void *pvParameters)
+{
+    ESP_LOGI(TAGLCD, "install pcnt unit");
+    pcnt_unit_config_t unit_config = {
+        .high_limit = EXAMPLE_PCNT_HIGH_LIMIT,
+        .low_limit = EXAMPLE_PCNT_LOW_LIMIT,
+    };
+    
+    ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &pcnt_unit));
+
+
+    ESP_LOGI(TAGLCD, "install pcnt channels");
+    pcnt_chan_config_t chan_a_config = {
+        .edge_gpio_num = SELECTOR_GPIO_A,
+        .level_gpio_num = SELECTOR_GPIO_B,
+    };
+    pcnt_channel_handle_t pcnt_chan_a = NULL;
+    ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_a_config, &pcnt_chan_a));
+    pcnt_chan_config_t chan_b_config = {
+        .edge_gpio_num = SELECTOR_GPIO_B,
+        .level_gpio_num = SELECTOR_GPIO_A,
+    };
+    pcnt_channel_handle_t pcnt_chan_b = NULL;
+    ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_b_config, &pcnt_chan_b));
+
+    ESP_LOGI(TAGLCD, "set edge and level actions for pcnt channels");
+
+
+
+    ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_a, PCNT_CHANNEL_EDGE_ACTION_DECREASE, PCNT_CHANNEL_EDGE_ACTION_INCREASE));
+    ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
+    ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_b, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_DECREASE));
+    ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_b, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
+
+    ESP_LOGI(TAGLCD, "add watch points and register callbacks");
+
+    // QueueHandle_t queue = xQueueCreate(10, sizeof(int));
+
+    ESP_LOGI(TAGLCD, "enable pcnt unit");
+    ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
+    ESP_LOGI(TAGLCD, "clear pcnt unit");
+    ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
+    ESP_LOGI(TAGLCD, "start pcnt unit");
+    ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
+
+#if CONFIG_EXAMPLE_WAKE_UP_LIGHT_SLEEP
+    // EC11 channel output high level in normal state, so we set "low level" to wake up the chip
+    ESP_ERROR_CHECK(gpio_wakeup_enable(EXAMPLE_EC11_GPIO_A, GPIO_INTR_LOW_LEVEL));
+    ESP_ERROR_CHECK(esp_sleep_enable_gpio_wakeup());
+    ESP_ERROR_CHECK(esp_light_sleep_start());
+#endif
+
+    // Report counter value
+    int pulse_count = 0;
+    int prev_count = 0;
+    while (1) {
+        ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
+
+        if (prev_count != pulse_count){
+            printf("Pulse Count PRO 4: %d PREV Count PRO : %d 4\n", pulse_count, prev_count);
+            if (pulse_count %4 ==0) {
+            printf("Pulse Count: %d\n", pulse_count);
+            
+            // Determine the direction of rotation
+            if (prev_count < pulse_count) {
+                // Clockwise rotation
+                if (setSelection == true){
+                    Selection++;
+                        if (Selection > maxRottarySelection) {
+                            Selection = 1;
+                    }
+                } else if (setPowerFeed == true){
+                        if (powerFeedValue<0.40){
+                            powerFeedValue+=0.10;
+                            if (powerFeedValue > 0.40) { // Ensure it doesn't go below zero
+                                powerFeedValue = 0.40;
+                            }
+                            FinalmetricThreadsValue = (int)(powerFeedValue*100+0.1);
+                        }
+                }else if (setMetricThreads == true){
+                        if (metricThreadsValue<3.00){
+                            metricThreadsValue+=0.05;
+                            if (metricThreadsValue>3.00){
+                                metricThreadsValue=3.00;
+                            }
+                            FinalmetricThreadsValue = (int)(metricThreadsValue*100+0.5);
+                        }
+                }else if (setTPIthreads == true){
+                        if (tpiThreadsValue<30){
+                            tpiThreadsValue++;
+                            if(tpiThreadsValue>30){
+                                tpiThreadsValue=30;
+                            }
+                            FinalmetricThreadsValue = (int)((25.4/tpiThreadsValue)*100+0.5);
+
+                        }
+                }else if (setRottaryEncoder == true){
+                        if (rottaryEncoderValues<10000){
+                            rottaryEncoderValues+=100;
+                            if (rottaryEncoderValues>10000){
+                                rottaryEncoderValues=10000;
+                            }
+                        }
+
+                }else if (setleadScrew == true){
+                        if (leadScrewValue<300){
+                            leadScrewValue+=10;
+                            if (leadScrewValue>300){
+                                leadScrewValue =300;
+                            }
+                        } 
+                }else if (setStepperMotor == true){
+                        if (stepperMotorValue<200){
+                            stepperMotorValue+=10;
+                            if (stepperMotorValue>200){
+                                stepperMotorValue = 200;
+                            }
+                        }
+                }
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            } else {
+                if (setSelection== true){
+                // Counter-clockwise rotation
+                    Selection--;
+                    if (Selection < 1) {
+                        Selection = maxRottarySelection;
+                    }
+                } else if (setPowerFeed == true){
+                        if (powerFeedValue>0.0){
+                            powerFeedValue -= 0.10;
+                            if (powerFeedValue<0.1){
+                                powerFeedValue = 0.1;
+                            }
+                        }
+                        FinalmetricThreadsValue = (int)(powerFeedValue*100+0.1);
+                } else if (setMetricThreads == true){
+                        if (metricThreadsValue>0){
+                            metricThreadsValue-=0.05;
+                            if (metricThreadsValue < 0.75){
+                                metricThreadsValue=0.75;
+                            }
+                        }
+                        FinalmetricThreadsValue = (int)(metricThreadsValue*100+0.5);
+                } else if (setTPIthreads == true){
+                        if (tpiThreadsValue>0){
+                            tpiThreadsValue--;
+                            if (tpiThreadsValue==0){
+                                tpiThreadsValue=1;
+                            }
+                        }
+                        FinalmetricThreadsValue = (int)((25.4/tpiThreadsValue)*100+0.5);
+                } else if (setRottaryEncoder == true){
+                        if (rottaryEncoderValues>0){
+                            rottaryEncoderValues-=100;
+                            if (rottaryEncoderValues<2000){
+                                rottaryEncoderValues=2000;
+                            }
+                        }
+                }else if (setleadScrew == true){
+                        if (leadScrewValue>0){
+                            leadScrewValue-=10;
+                            if (leadScrewValue<0){
+                                leadScrewValue-=0;
+                            }
+                        }
+                }else if (setStepperMotor == true){
+                        if (stepperMotorValue>0){
+                            stepperMotorValue-=10;
+                            if (stepperMotorValue<0){
+                                stepperMotorValue = 0;
+                            }
+                        }
+                }
+            }
+            printf("PathMenu %d Selection: %d Pulse Count: %d PrevCount: %d Metric: %d, Metric Dec %.2f, Power %.2f TPI: %d Final TPIMETRIC: %d\n", PathMenu, Selection, pulse_count, prev_count, FinalmetricThreadsValue, metricThreadsValue, powerFeedValue, tpiThreadsValue,FinalmetricThreadsValue);
+            path[PathMenu] = Selection;
+
+            CreateMenu();
+            prev_count = pulse_count;
+
+
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(30));
+        
+
+        if (xSemaphoreTake(xStopTaskBSemaphore, 0) == pdTRUE) {
+            ESP_LOGI("TaskB", "TaskB received stop signal");
+            vTaskDelete(NULL); // Delete TaskB
+        }
+
+    }
+}
+
+void TaskStepperClock(void *pvParameters) {
+    esp_rom_gpio_pad_select_gpio(DirPin);
+    gpio_set_direction(DirPin, GPIO_MODE_OUTPUT);
+
+    esp_rom_gpio_pad_select_gpio(PulcePin);
+    gpio_set_direction(PulcePin, GPIO_MODE_OUTPUT);
+    while (1) {
+        if(xSemaphoreTake(xBinarySemaphoreClock, portMAX_DELAY)==pdTRUE){     
+            gpio_set_level(DirPin,1);      
+            gpio_set_level(PulcePin, 1);
+            vTaskDelay(pdMS_TO_TICKS(1));
+            gpio_set_level(PulcePin, 0);
+        }
+    }
+}
+
+void TaskStepperCounterClock(void *pvParameters) {
+    esp_rom_gpio_pad_select_gpio(DirPin);
+    gpio_set_direction(DirPin, GPIO_MODE_OUTPUT);
+
+    esp_rom_gpio_pad_select_gpio(PulcePin);
+    gpio_set_direction(PulcePin, GPIO_MODE_OUTPUT);
+    while (1) {
+        if(xSemaphoreTake(xBinarySemaphoreCounterClock, portMAX_DELAY)==pdTRUE){     
+            gpio_set_level(DirPin,0);      
+            gpio_set_level(PulcePin, 1);
+            vTaskDelay(pdMS_TO_TICKS(1));
+            gpio_set_level(PulcePin, 0);
+        }
+    }
+}
+
+void TaskRottary(void *pvParameters)
+{
+    int RottaryStepps = GetNVS("rottary");
+    esp_task_wdt_add(NULL);
+    block_data_t *p = (block_data_t *)pvParameters;
+    int *numbers = p->arr;       // pointer to allocated array
+    int sizeOfList = p->length;  // length
+
+
+        ESP_LOGI("RottaryEnc", "sizeOfList = %d", sizeOfList);
+    for (int k = 0; k < sizeOfList; k++) {
+        ESP_LOGI("RottaryEnc", "Element %d = %d", k, numbers[k]);
+    }
+
+    ESP_LOGI(TAGLATHE, "install pcnt unit");
+    pcnt_unit_handle_t pcnt_unit = NULL;// INFO  I TOOK IT FROM BELO
+    pcnt_unit_config_t unit_config = {
+        .high_limit = RottaryStepps,
+        .low_limit = RottaryStepps*(-1),
+    };
+   
+    ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &pcnt_unit));
+
+    ESP_LOGI(TAGLATHE, "install pcnt channels");
+    pcnt_chan_config_t chan_a_config = {
+        .edge_gpio_num = EXAMPLE_EC11_GPIO_A,
+        .level_gpio_num = EXAMPLE_EC11_GPIO_B,
+    };
+    pcnt_channel_handle_t pcnt_chan_a = NULL;
+    ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_a_config, &pcnt_chan_a));
+    pcnt_chan_config_t chan_b_config = {
+        .edge_gpio_num = EXAMPLE_EC11_GPIO_B,
+        .level_gpio_num = EXAMPLE_EC11_GPIO_A,
+    };
+    pcnt_channel_handle_t pcnt_chan_b = NULL;
+    ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_b_config, &pcnt_chan_b));
+
+    ESP_LOGI(TAGLATHE, "set edge and level actions for pcnt channels");
+    ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_a, PCNT_CHANNEL_EDGE_ACTION_DECREASE, PCNT_CHANNEL_EDGE_ACTION_INCREASE));
+    ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
+    ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_b, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_DECREASE));
+    ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_b, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
+
+
+    ESP_LOGI(TAGLATHE, "enable pcnt unit");
+    ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
+    ESP_LOGI(TAGLATHE, "clear pcnt unit");
+    ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
+    ESP_LOGI(TAGLATHE, "start pcnt unit");
+    ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
+
+#if CONFIG_EXAMPLE_WAKE_UP_LIGHT_SLEEP
+    // EC11 channel output high level in normal state, so we set "low level" to wake up the chip
+    ESP_ERROR_CHECK(gpio_wakeup_enable(EXAMPLE_EC11_GPIO_A, GPIO_INTR_LOW_LEVEL));
+    ESP_ERROR_CHECK(esp_sleep_enable_gpio_wakeup());
+    ESP_ERROR_CHECK(esp_light_sleep_start());
+#endif
+    int pulse_count = 0;
+    for (;;) {
+
+            ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
+                    if (pulse_count % numbers[0] == 0 && pulse_count>0) {
+                            xSemaphoreGive(xBinarySemaphoreClock);
+                            pcnt_unit_clear_count(pcnt_unit);
+                            int x = numbers[0];
+                            for(int i=0; i<sizeOfList - 1; i++){
+                                numbers[i]=numbers[i+1];
+                            }
+                            numbers[sizeOfList-1] = x;
+
+                        } else if (pulse_count % numbers[0] == 0 && pulse_count < 0){
+                            xSemaphoreGive(xBinarySemaphoreCounterClock);
+                            pcnt_unit_clear_count(pcnt_unit);
+                            int x = numbers[0];
+                            for(int i=0; i<sizeOfList - 1; i++){
+                                numbers[i]=numbers[i+1];
+                            }
+                            numbers[sizeOfList-1] = x;
+                        } else{;;}
+                         esp_task_wdt_reset();
+                    }
+}
+
+
+
+
+static int gcd(int a, int b)
+{
+    if (b == 0) return a;
+    return gcd(b, a % b);
+}
+
+
+
+void app_main() {
+    xStopTaskBSemaphore = xSemaphoreCreateBinary();
     if (xStopTaskBSemaphore == NULL) {
         ESP_LOGE("Main", "Failed to create semaphore");
         return;
@@ -1350,10 +1203,23 @@ void app_main(void)
         ESP_LOGE("Main", "Failed to create queue");
         return;
     }
+
+    xBinarySemaphoreClock = xSemaphoreCreateBinary();
+    if (xBinarySemaphoreClock == NULL) {
+        ESP_LOGE("app_main", "Failed to create semaphore");
+        return; // Abort if semaphore creation fails
+    }
+    
+    xBinarySemaphoreCounterClock = xSemaphoreCreateBinary();
+    if (xBinarySemaphoreCounterClock == NULL) {
+        ESP_LOGE("app_main", "Failed to create semaphore");
+        return; // Abort if semaphore creation fails
+    }
+
     InitializeValues();
     // InitializeValues();
 
-    printf(  "Rottary : %d, Lead : %d, Stepper: %d",  rottaryEncoderValues ,   leadScrewValue ,   stepperMotorValue );
+    
 
 
     i2c_master_init();
@@ -1373,10 +1239,6 @@ void app_main(void)
 
     );
 
-    //     xTaskCreate(TaskA, "TaskA", 4096, NULL, 1, &TaskA_Handle);
-//     xTaskCreate(TaskB, "TaskB", 4096, NULL, 1, &TaskB_Handle);
-
-
     xTaskCreate(
         ButtonPressed,            // Function that implements the task
         "ButtonPressed",      // Name of the task
@@ -1390,119 +1252,130 @@ void app_main(void)
     );
     // Loop forever
 
-        while (eTaskGetState(TaskA_Handle) != eDeleted || eTaskGetState(TaskB_Handle) != eDeleted) {
+    while (eTaskGetState(TaskA_Handle) != eDeleted || eTaskGetState(TaskB_Handle) != eDeleted) {
         vTaskDelay(pdMS_TO_TICKS(100));
     }
-    int x=10;
-    while (true) {
-        printf("sdfaferqageqrg %d\n",x);
-        vTaskDelay(pdMS_TO_TICKS(1000));
+    printf(  "Rottary : %d, Lead : %d, Stepper: %d, Metric : %d ",  rottaryEncoderValues ,   leadScrewValue ,   stepperMotorValue, FinalmetricThreadsValue );
+
+
+
+   
+    int LeadScrewPitch = GetNVS("lead");
+    int StepperSteps = GetNVS("stepper");
+    int SpindlePulses = GetNVS("rottary");
+
+    // We want to express ratio = pulses / steps in simplest form.
+    // ratio = 4000 / 175
+    // 1) Compute GCD
+    esp_task_wdt_config_t wd_config = {
+        .timeout_ms =5000,
+        .idle_core_mask=0,
+        .trigger_panic=true,
+       };
+         esp_err_t ret = esp_task_wdt_reconfigure(&wd_config); // Apply configuration
+        if (ret != ESP_OK) {
+            printf("Task Watchdog Timer reconfiguration failed: %d\n", ret);
+        }
+
+
+    float fRleadScrew = StepperSteps * ((float)FinalmetricThreadsValue / (float)LeadScrewPitch);
+    int RleadScrew = (int)fRleadScrew;
+   
+    int divisor = gcd(SpindlePulses, RleadScrew);
+
+    // 2) Divide both by GCD to get reduced fraction
+    int numerator   = SpindlePulses / divisor;  // e.g. 4000 / 25 = 160
+    int denominator = RleadScrew  / divisor;  // e.g. 175 / 25  = 7
+
+    // 3) Print results
+    printf("Ratio (pulses/steps) = %d/%d Divisor = %d\n", numerator, denominator, divisor);
+
+    // The fraction is 160/7, meaning:
+    // - For every 7 'step blocks', we have 160 'pulse blocks'.
+    // - Repeated enough times => 175 steps, 4000 pulses.
+
+    int blockSteps  = denominator; // 7
+    int blockPulses = numerator;   // 160
+
+    printf("Block size (steps) = %d, Pulses in that block = %d\n",
+           blockSteps, blockPulses);
+
+    // Keep this task alive
+    
+    int *blockArray = malloc(blockSteps * sizeof(int));
+    if (!blockArray) {
+        ESP_LOGE("app_main", "Failed to allocate memory for blockArray");
+        return; // handle error gracefully
     }
+
+    int FirstEntries = numerator / blockSteps;
+    ESP_LOGE("app_main", "FirstEnttries: %d", FirstEntries);
+    for (int i =0; i<blockSteps; i++){
+        blockArray[i]=FirstEntries;
+    }
+    int Remaining = blockPulses - (FirstEntries *blockSteps);
+    ESP_LOGE("app_main", "Remaining: %d", Remaining);
+    if (Remaining>0){
+        int counter = 0;
+        for (int j=0; j<Remaining; j++){
+            blockArray[counter]++;
+            counter++;
+            if (counter>blockSteps){
+                counter =0;
+            }
+        }
+    }
+
+    for(int k=0; k<blockSteps; k++){
+        ESP_LOGE("app_main", "Element: %d, Size: %d",k,blockArray[k]);
+    }
+    vTaskDelay(1000000);
+
+    block_data_t *params = malloc(sizeof(block_data_t));
+    if (!params) {
+        ESP_LOGE("app_main", "Failed to allocate memory for params");
+        free(blockArray);
+        return; // handle error
+    }
+
+    params->arr    = blockArray;   // store the pointer
+    params->length = blockSteps;   // store the length
+
+    // Create the task and pin it to core 1
+    xTaskCreatePinnedToCore(
+        TaskStepperClock,            // Function that implements the task
+        "TaskStepperClock",      // Name of the task
+        4096,             // Stack size
+        NULL,             // Task input parameter
+        1,                // Priority of the task
+        NULL,             // Task handle
+        tskNO_AFFINITY
+        // 1                 // Core where the task should run (1 for core 1, 0 for core 0)
+
+    );
+
+
+    xTaskCreatePinnedToCore(
+        TaskStepperCounterClock,            // Function that implements the task
+        "TaskStepperCounterClock",      // Name of the task
+        4096,             // Stack size
+        NULL,             // Task input parameter
+        1,                // Priority of the task
+        NULL,             // Task handle
+        tskNO_AFFINITY
+        // 1                 // Core where the task should run (1 for core 1, 0 for core 0)
+
+    );
+
+
+    xTaskCreatePinnedToCore(  
+        TaskRottary,
+        "RotaryEncoder",
+        4096,
+        (void *)params,
+        1,
+        NULL,
+        tskNO_AFFINITY
+        // 0
+    );
 }
-
-///////////////////////////////////////////////////////////////////////////////////////
-// #include <freertos/FreeRTOS.h>
-// #include <freertos/task.h>
-// #include <freertos/semphr.h>
-// #include <freertos/queue.h>
-// #include <esp_log.h>
-
-// // Task handles
-// TaskHandle_t TaskA_Handle = NULL;
-// TaskHandle_t TaskB_Handle = NULL;
-// TaskHandle_t TaskC_Handle = NULL;
-// TaskHandle_t TaskE_Handle = NULL;
-
-// // Semaphore to signal TaskB to stop
-// SemaphoreHandle_t xStopTaskBSemaphore = NULL;
-
-// // Queue to start TaskC and TaskE
-// QueueHandle_t xStartTasksQueue = NULL;
-
-// // TaskA function
-// void TaskA(void *pvParameters) {
-//     while (1) {
-//         ESP_LOGI("TaskA", "TaskA is running");
-
-//         // Simulate some work
-//         vTaskDelay(pdMS_TO_TICKS(1000));
-
-//         // Check condition to stop TaskB
-//         if (/* some condition */) {
-//             ESP_LOGI("TaskA", "TaskA signaling TaskB to stop");
-//             xSemaphoreGive(xStopTaskBSemaphore); // Signal TaskB to stop
-
-//             // Stop itself
-//             ESP_LOGI("TaskA", "TaskA stopping itself");
-//             vTaskDelete(NULL); // Delete TaskA
-//         }
-//     }
-// }
-
-// // TaskB function
-// void TaskB(void *pvParameters) {
-//     while (1) {
-//         ESP_LOGI("TaskB", "TaskB is running");
-
-//         // Check if TaskB should stop
-//         if (xSemaphoreTake(xStopTaskBSemaphore, pdMS_TO_TICKS(10)) {
-//             ESP_LOGI("TaskB", "TaskB received stop signal");
-//             vTaskDelete(NULL); // Delete TaskB
-//         }
-
-//         // Simulate some work
-//         vTaskDelay(pdMS_TO_TICKS(1000));
-//     }
-// }
-
-// // TaskC function
-// void TaskC(void *pvParameters) {
-//     while (1) {
-//         ESP_LOGI("TaskC", "TaskC is running");
-
-//         // Simulate some work
-//         vTaskDelay(pdMS_TO_TICKS(1000));
-//     }
-// }
-
-// // TaskE function
-// void TaskE(void *pvParameters) {
-//     while (1) {
-//         ESP_LOGI("TaskE", "TaskE is running");
-
-//         // Simulate some work
-//         vTaskDelay(pdMS_TO_TICKS(1000));
-//     }
-// }
-
-// // Main function to start tasks
-// void app_main() {
-//     // Create the semaphore to signal TaskB to stop
-//     xStopTaskBSemaphore = xSemaphoreCreateBinary();
-//     if (xStopTaskBSemaphore == NULL) {
-//         ESP_LOGE("Main", "Failed to create semaphore");
-//         return;
-//     }
-
-//     // Create the queue to start TaskC and TaskE
-//     xStartTasksQueue = xQueueCreate(1, sizeof(int));
-//     if (xStartTasksQueue == NULL) {
-//         ESP_LOGE("Main", "Failed to create queue");
-//         return;
-//     }
-
-//     // Create TaskA and TaskB
-//     xTaskCreate(TaskA, "TaskA", 4096, NULL, 1, &TaskA_Handle);
-//     xTaskCreate(TaskB, "TaskB", 4096, NULL, 1, &TaskB_Handle);
-
-//     // Wait for TaskA and TaskB to stop
-//     while (eTaskGetState(TaskA_Handle) != eDeleted || eTaskGetState(TaskB_Handle) != eDeleted) {
-//         vTaskDelay(pdMS_TO_TICKS(100));
-//     }
-
-//     // Start TaskC and TaskE
-//     int startSignal = 1;
-//     xQueueSend(xStartTasksQueue, &startSignal, portMAX_DELAY);
-//     xTaskCreate(TaskC, "TaskC", 4096, NULL, 1, &TaskC_Handle);
-//     xTaskCreate(TaskE, "TaskE", 4096, NULL, 1, &TaskE_Handle);
-// }

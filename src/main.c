@@ -50,13 +50,13 @@ void InitializeValues();
 static const char *TAGLCD = "I2C_LCD";
 static const char *TAGLATHE = "Lathe";
 
-#define SELECTOR_GPIO_A 36
-#define SELECTOR_GPIO_B 37
-#define SELECTOR_GPIO_BUTTON 40
-#define EXAMPLE_EC11_GPIO_A 35
-#define EXAMPLE_EC11_GPIO_B 2
-#define DirPin GPIO_NUM_4
-#define PulcePin GPIO_NUM_5
+#define SELECTOR_GPIO_A 4           //changed GPIO to match PCB
+#define SELECTOR_GPIO_B 5            //changed GPIO to match PCB
+#define SELECTOR_GPIO_BUTTON 6        //changed GPIO to match PCB
+#define EXAMPLE_EC11_GPIO_A 14         //changed GPIO to match PCB
+#define EXAMPLE_EC11_GPIO_B 13          //changed GPIO to match PCB
+#define DirPin GPIO_NUM_17               //changed GPIO to match PCB
+#define PulcePin GPIO_NUM_16              //changed GPIO to match PCB
 
 
 #define EXAMPLE_PCNT_HIGH_LIMIT 80
@@ -65,8 +65,8 @@ static const char *TAGLATHE = "Lathe";
 
 
 /* I2C configuration */
-#define I2C_MASTER_SCL_IO          6   // GPIO for SCL signal
-#define I2C_MASTER_SDA_IO          7   // GPIO for SDA signal
+#define I2C_MASTER_SCL_IO          9   // GPIO for SCL signal *changed to default I2C SCL GPIO to match PCB 
+#define I2C_MASTER_SDA_IO          8   // GPIO for SDA signal *changed to default I2C SCL GPIO to match PCB
 #define I2C_MASTER_NUM             I2C_NUM_0
 #define I2C_MASTER_FREQ_HZ         100000 // Standard 100kHz
 #define I2C_MASTER_TX_BUF_DISABLE  0
@@ -129,8 +129,8 @@ static const char *TAGLATHE = "Lathe";
 
 
 
-float powerFeedValue=0.10;
-float metricThreadsValue =0.75;
+float powerFeedValue=0.00;      // changed to zero to force user to select value
+float metricThreadsValue =0.00;  // changed to zero to force user to select value
 int tpiThreadsValue =0;
 int rottaryEncoderValues=0;
 int leadScrewValue=0;
@@ -149,6 +149,10 @@ bool setTPIthreads = false;
 bool setRottaryEncoder = false;
 bool setleadScrew = false;
 bool setStepperMotor=false;
+bool powerFeedRun = false;
+bool metricThreadsRun = false;
+bool tpiThreadsRun = false;
+
 
 
 
@@ -157,11 +161,11 @@ int path[ALL_MENU]={0,1,1,1,1,1,1,1,1,1};
 int PathMenu=1;// The menu that goes up and down the ">"
 int Selection =1;
 int maxRottarySelection = 3;
-const char *Main_Menu[MAIN_MENU_ITEMS]  = {"Main Menu","Power Feed", "Threads", "Settings"};
-const char *Threads_Menu[THREADS_MENU_ITEMS]  = {"Threads Menu","Metric", "TPI", "Return"};
-const char *Settings_Menu[SETTINGS_MENU_ITEMS]  = {"Settings Menu","Set Rot. Encoder", "Set Lead Screw", "Set Stepper Motor", "Return"};
-const char *OK_RETURN[4]={""," Value : ","OK","Return"};
-const char *RETURN[3]={""," Value : ","Return"};
+const char *Main_Menu[MAIN_MENU_ITEMS]  = {"   -*Main Menu*- ","Power Feed", "Threads", "Settings"};
+const char *Threads_Menu[THREADS_MENU_ITEMS]  = {"  -*Threads Menu*-","Metric", "TPI", "Return"};
+const char *Settings_Menu[SETTINGS_MENU_ITEMS]  = {" -*Settings Menu*-","Set Rot. Encoder", "Set Lead Screw", "Set Stepper Motor", "Return"};
+const char *OK_RETURN[4]={"","Value : ","OK","Return"};
+const char *RETURN[3]={"","Value : ","Return"};
 const char *TYPE[1]={""};
 static uint8_t pcf8574_mask = PCF8574_BL; // Start with backlight ON
 
@@ -432,9 +436,49 @@ static void PrintSettingsMenu(int pos, int menu){
 }
 
 static void PrintRun(){
+    char valueStr[16];
+    //int ivalue;
     lcd_cmd(LCD_CMD_CLEAR_DISPLAY);
     lcd_set_cursor(0, 0); // Move cursor to row i
-    lcd_print(">>>>>>>> RUN <<<<<<<"); // Highlight the selected item
+    lcd_print(">>>>>> RUNNING <<<<<"); // Highlight the selected item    
+    
+    if (metricThreadsRun == true){      // added to indicate the selected metric thread
+        lcd_set_cursor(0,1);
+        lcd_print ("Metric Thread");
+        sprintf(valueStr, "%.2f", metricThreadsValue); // Convert integer to string
+         lcd_set_cursor(14,1);
+         lcd_print(valueStr);
+         lcd_set_cursor(18,1);
+         lcd_print("mm");
+    }
+    else if (powerFeedRun == true)      // added to indicate the selected power feed
+    {
+        lcd_set_cursor(0,1);
+        lcd_print ("Power Feed");
+        sprintf(valueStr, "%.2f", powerFeedValue); // Convert integer to string
+         lcd_set_cursor(14,1);
+         lcd_print(valueStr);
+         lcd_set_cursor(18,1);
+         lcd_print("mm");
+    }
+    else if (tpiThreadsRun == true)     // added to indicate the selected TPI thread
+    {
+        lcd_set_cursor(0,1);
+        lcd_print ("TPI Thread");
+        sprintf(valueStr, "%.d", tpiThreadsValue); // Convert integer to string
+         lcd_set_cursor(14,1);
+         lcd_print(valueStr);
+         lcd_set_cursor(17,1);
+         lcd_print("TPI");
+    }
+        lcd_set_cursor (0,3);
+        lcd_print(">");
+        lcd_set_cursor (1,3);
+        lcd_print("Main Menu");
+       
+        
+    
+     
 }
 
 static void PrintValuesMenu(int pos, int menu ){
@@ -445,30 +489,30 @@ static void PrintValuesMenu(int pos, int menu ){
     char valueStr[16];
 
     if (menu == 1){
-        OK_RETURN[0] = "Power Feed Menu";
+        OK_RETURN[0] = "-*Power Feed Menu*-";
         fvalue = powerFeedValue;
         items = POWER_FEED_MENU_ITEMS;
-        TYPE[0] = "cm";
+        TYPE[0] = "mm";             // Changed to correct description
     } else if (menu == 4){
          OK_RETURN[0] = "Metric Threads";
          fvalue = metricThreadsValue;
          items = METRIC_MENU_ITEMS;
-        TYPE[0] = "cm";
+        TYPE[0] = "mm";         // Changed to correct description
     } else if (menu == 5){
          OK_RETURN[0] = "TPI";
          ivalue=tpiThreadsValue;
          items=TPI_MENU_ITEMS;
-         TYPE[0] = "Inch";
+         TYPE[0] = "TPI";       // Changed to correct description
     }else if (menu == 6){
          RETURN[0] = "Rotary Encoder";
          items=SET_ROTARY_ENCODER_MENU_ITEMS;
          ivalue= rottaryEncoderValues;
-        TYPE[0] = "PRM";
+        TYPE[0] = "PPR";        // Changed to correct description
     }else if (menu == 7){
          RETURN[0] = "Lead Screw";
          ivalue= leadScrewValue;
          items=SET_LEAD_SCREW_MENU_ITEMS;
-         TYPE[0] = "Ptc";
+         TYPE[0] = "Pitch";     // Changed to correct description
     }else if (menu == 8){
          RETURN[0] = "Stepper Motor";
         ivalue= stepperMotorValue;
@@ -708,13 +752,13 @@ void ButtonPressed(void *pvParameters)
                         vTaskDelete(NULL);
                     } else if (path[2]==3){ // INFO RETURN TO MAIN MENU
                         path[0]=0;
-                        path[2]=1; 
+                        path[2]=1;          
                         PathMenu=1;
                         maxRottarySelection = 3;
                         CreateMenu();
                     }
 ////////////////////////////////////////////////////////////////////
-                } else if(path[0] ==2){//INFO THREADS MENY
+                } else if(path[0] ==2){//INFO THREADS MENU
                     if (path[3]==1){
                         path[0]=4;
                         path[3]=1;
@@ -854,13 +898,14 @@ void ButtonPressed(void *pvParameters)
                         CreateMenu();
                     }
 ////////////////////////////////////////////////////////////////////
-                    }
+                    }                   
+                    
                 }
                 button_pressed = false; // Reset the flag
             }
         
         // Add a delay to avoid bouncing and flooding the console
-        vTaskDelay(pdMS_TO_TICKS(200));
+        vTaskDelay(pdMS_TO_TICKS(200));        //initial value 200
   } 
 }
 
@@ -939,28 +984,37 @@ void SelectorCounter(void *pvParameters)
                             Selection = 1;
                     }
                 } else if (setPowerFeed == true){
-                        if (powerFeedValue<0.40){
-                            powerFeedValue+=0.10;
-                            if (powerFeedValue > 0.40) { // Ensure it doesn't go below zero
-                                powerFeedValue = 0.40;
+                        if (powerFeedValue<0.16){
+                            powerFeedValue+=0.01;
+                            if (powerFeedValue > 0.16) { // Ensure it doesn't go below zero
+                                powerFeedValue = 0.16;
                             }
                             FinalmetricThreadsValue = (int)(powerFeedValue*100+0.1);
+                            powerFeedRun = true;
+                            metricThreadsRun= false;
+                            tpiThreadsRun=false;
                         }
                 }else if (setMetricThreads == true){
-                        if (metricThreadsValue<3.00){
+                        if (metricThreadsValue<6.00){
                             metricThreadsValue+=0.05;
-                            if (metricThreadsValue>3.00){
-                                metricThreadsValue=3.00;
+                            if (metricThreadsValue>6.00){
+                                metricThreadsValue=6.00;
                             }
                             FinalmetricThreadsValue = (int)(metricThreadsValue*100+0.5);
+                            powerFeedRun = false;
+                            metricThreadsRun= true;
+                            tpiThreadsRun=false;
                         }
                 }else if (setTPIthreads == true){
-                        if (tpiThreadsValue<30){
+                        if (tpiThreadsValue<60){
                             tpiThreadsValue++;
-                            if(tpiThreadsValue>30){
-                                tpiThreadsValue=30;
+                            if(tpiThreadsValue>60){
+                                tpiThreadsValue=60;
                             }
                             FinalmetricThreadsValue = (int)((25.4/tpiThreadsValue)*100+0.5);
+                            powerFeedRun = false;
+                            metricThreadsRun= false;
+                            tpiThreadsRun=true;
 
                         }
                 }else if (setRottaryEncoder == true){
@@ -979,10 +1033,10 @@ void SelectorCounter(void *pvParameters)
                             }
                         } 
                 }else if (setStepperMotor == true){
-                        if (stepperMotorValue<200){
-                            stepperMotorValue+=10;
-                            if (stepperMotorValue>200){
-                                stepperMotorValue = 200;
+                        if (stepperMotorValue<800){
+                            stepperMotorValue+=100;
+                            if (stepperMotorValue>800){   // Changed to correct description
+                                stepperMotorValue = 800;
                             }
                         }
                 }
@@ -998,34 +1052,43 @@ void SelectorCounter(void *pvParameters)
                         Selection = maxRottarySelection;
                     }
                 } else if (setPowerFeed == true){
-                        if (powerFeedValue>0.0){
-                            powerFeedValue -= 0.10;
-                            if (powerFeedValue<0.1){
-                                powerFeedValue = 0.1;
+                        if (powerFeedValue>0.00){
+                            powerFeedValue -= 0.01;
+                            if (powerFeedValue<0.00){
+                                powerFeedValue = 0.00;
                             }
                         }
                         FinalmetricThreadsValue = (int)(powerFeedValue*100+0.1);
+                        powerFeedRun = true;
+                            metricThreadsRun= false;
+                            tpiThreadsRun=false;
                 } else if (setMetricThreads == true){
                         if (metricThreadsValue>0){
                             metricThreadsValue-=0.05;
-                            if (metricThreadsValue < 0.75){
-                                metricThreadsValue=0.75;
+                            if (metricThreadsValue < 0.00){
+                                metricThreadsValue=0.00;
                             }
                         }
                         FinalmetricThreadsValue = (int)(metricThreadsValue*100+0.5);
+                        powerFeedRun = false;
+                            metricThreadsRun= true;
+                            tpiThreadsRun=false;
                 } else if (setTPIthreads == true){
                         if (tpiThreadsValue>0){
                             tpiThreadsValue--;
-                            if (tpiThreadsValue==0){
-                                tpiThreadsValue=1;
+                            if (tpiThreadsValue < 0){
+                                tpiThreadsValue = 0;
                             }
                         }
                         FinalmetricThreadsValue = (int)((25.4/tpiThreadsValue)*100+0.5);
+                        powerFeedRun = false;
+                            metricThreadsRun= false;
+                            tpiThreadsRun=true;
                 } else if (setRottaryEncoder == true){
                         if (rottaryEncoderValues>0){
                             rottaryEncoderValues-=100;
-                            if (rottaryEncoderValues<2000){
-                                rottaryEncoderValues=2000;
+                            if (rottaryEncoderValues<600){
+                                rottaryEncoderValues=600;
                             }
                         }
                 }else if (setleadScrew == true){
@@ -1037,7 +1100,7 @@ void SelectorCounter(void *pvParameters)
                         }
                 }else if (setStepperMotor == true){
                         if (stepperMotorValue>0){
-                            stepperMotorValue-=10;
+                            stepperMotorValue-=100;
                             if (stepperMotorValue<0){
                                 stepperMotorValue = 0;
                             }
@@ -1053,7 +1116,7 @@ void SelectorCounter(void *pvParameters)
 
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(30));
+        vTaskDelay(pdMS_TO_TICKS(50));         //initial value 30
         
 
         if (xSemaphoreTake(xStopTaskBSemaphore, 0) == pdTRUE) {
@@ -1224,6 +1287,7 @@ void app_main() {
 
     i2c_master_init();
     lcd_init();
+    // set a welcome screen
     CreateMenu();
 
 
